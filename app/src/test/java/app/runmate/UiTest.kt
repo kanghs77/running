@@ -279,7 +279,8 @@ class UiTest {
         rule.onNodeWithText("'새벽 러닝' 초대").assertIsDisplayed()
         // QR 내용을 다시 읽어 친구가 참여
         val g = app.store.groups.value[0]
-        val code = Invite.encode(g.name, g.keyBytes())
+        val code = app.engine.inviteFor(g)
+        assertTrue(code.contains("&o="))
         val bmp = qrBitmap(code, 300)
         val px = IntArray(300 * 300); bmp.getPixels(px, 0, 300, 0, 0, 300, 300)
         val decoded = com.google.zxing.qrcode.QRCodeReader().decode(
@@ -288,6 +289,28 @@ class UiTest {
         assertNotNull(friend.engine.joinGroup(decoded))
         runBlocking { friend.engine.flushOutbox(); app.engine.flushOutbox(); app.engine.sync() }
         assertEquals(listOf("철수"), app.store.groups.value[0].members.map { it.name })
+    }
+
+    @Test fun adminKicksMemberFromUi() {
+        seed()
+        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        val before = app.store.groups.value.first { it.name == "한강 크루" }
+        rule.onAllNodes(androidx.compose.ui.test.hasTestTag("manage")).onFirst().performScrollTo().performClick(); rule.waitForIdle()
+        dialogShot("20_manage_members")
+        rule.onNodeWithTag("kick").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("confirmKick").performClick(); rule.waitForIdle()
+        val after = app.store.groups.value.first { it.name == "한강 크루" }
+        assertNotEquals(before.id, after.id); assertNotEquals(before.key, after.key)
+        assertTrue(after.members.isEmpty())
+        // 내 기록의 그룹 연결은 새 그룹으로 이어진다
+        assertTrue(app.store.metas.value.filter { it.mine }.none { before.id in it.groupIds })
+        assertTrue(app.store.metas.value.any { it.mine && after.id in it.groupIds })
+        // 내보낸 사람은 이후 기록을 받지 못한다
+        val me = app.store.identity.value
+        val t = makeTrack("afterKick", me.id, me.name, System.currentTimeMillis())
+        app.store.saveTrack(t) { Series.meta(t, true) }
+        app.engine.shareTrack("afterKick", listOf(after.id))
+        runBlocking { app.engine.flushOutbox(); assertEquals(0, friend.engine.sync().newTracks.size) }
     }
 
     @Test fun mutedNotificationsStillMarkUnread() {

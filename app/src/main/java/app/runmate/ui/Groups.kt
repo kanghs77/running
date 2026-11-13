@@ -48,7 +48,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.runmate.RunController
 import app.runmate.core.Group
-import app.runmate.core.Invite
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -79,6 +78,8 @@ fun GroupsScreen() {
     var text by remember { mutableStateOf("") }
     var qrFor by remember { mutableStateOf<Group?>(null) }
     var leaving by remember { mutableStateOf<Group?>(null) }
+    var managing by remember { mutableStateOf<String?>(null) }     // 멤버 관리 중인 그룹 id
+    var kicking by remember { mutableStateOf<Pair<String, String>?>(null) }   // (그룹 id, 멤버 id)
 
     fun afterChange() { app.kickOutbox(); try { app.scheduleBackground() } catch (e: Exception) {}; app.syncNow() }
 
@@ -141,10 +142,12 @@ fun GroupsScreen() {
         for (g in groups) {
             Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
                 Column(Modifier.padding(14.dp)) {
-                    Text(g.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    val admin = app.engine.isAdmin(g)
+                    Text(g.name + if (admin) "  · 내가 그룹장" else "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text("${g.members.size + 1}명: 나" + g.members.joinToString("") { ", ${it.name}" }, color = Dim, style = MaterialTheme.typography.bodySmall)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { qrFor = g }) { Text("초대 QR") }
+                        if (admin && g.members.isNotEmpty()) TextButton(onClick = { managing = g.id }, modifier = Modifier.testTag("manage")) { Text("멤버 관리") }
                         TextButton(onClick = { leaving = g }) { Text("나가기", color = MaterialTheme.colorScheme.error) }
                         Spacer(Modifier.weight(1f))
                         Text("알림", color = Dim, style = MaterialTheme.typography.labelMedium)
@@ -207,7 +210,7 @@ fun GroupsScreen() {
     }
 
     qrFor?.let { g ->
-        val code = remember(g.id) { Invite.encode(g.name, g.keyBytes()) }
+        val code = remember(g.id) { app.engine.inviteFor(g) }
         val bmp = remember(g.id) { try { qrBitmap(code) } catch (e: Exception) { null } }
         AlertDialog(
             onDismissRequest = { qrFor = null },
@@ -221,6 +224,50 @@ fun GroupsScreen() {
             confirmButton = { TextButton(onClick = { qrFor = null }) { Text("닫기") } },
             dismissButton = { TextButton(onClick = { clipboard.setText(AnnotatedString(code)); RunController.notice.value = "초대 코드를 복사했어요." }) { Text("코드 복사") } },
         )
+    }
+
+    managing?.let { gid ->
+        val g = groups.firstOrNull { it.id == gid }
+        if (g == null || g.members.isEmpty()) managing = null
+        else AlertDialog(
+            onDismissRequest = { managing = null },
+            title = { Text("'${g.name}' 멤버 관리") },
+            text = {
+                Column {
+                    for (m in g.members) Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(m.name, Modifier.weight(1f))
+                        TextButton(onClick = { kicking = g.id to m.id }, modifier = Modifier.testTag("kick")) { Text("내보내기", color = MaterialTheme.colorScheme.error) }
+                    }
+                    Text("내보내면 그룹의 암호 키가 새로 바뀌고, 남은 그룹원에게만 새 키가 전달됩니다. 내보낸 사람은 이후 기록을 볼 수 없어요(이미 받은 기록은 그 사람 휴대폰에 남습니다).", color = Dim, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                }
+            },
+            confirmButton = { TextButton(onClick = { managing = null }) { Text("닫기") } },
+        )
+    }
+
+    kicking?.let { (gid, mid) ->
+        val g = groups.firstOrNull { it.id == gid }
+        val m = g?.members?.firstOrNull { it.id == mid }
+        if (g == null || m == null) kicking = null
+        else {
+            val noKey = g.members.filter { it.id != mid && it.pub.isEmpty() }
+            AlertDialog(
+                onDismissRequest = { kicking = null },
+                title = { Text("그룹원 내보내기") },
+                text = {
+                    Text("'${m.name}'님을 '${g.name}' 그룹에서 내보낼까요?" +
+                        if (noKey.isNotEmpty()) "\n\n주의: ${noKey.joinToString(", ") { it.name }}님은 구버전 앱이라 새 키를 받을 수 없어요. 내보낸 뒤 초대 QR을 다시 보여 주세요." else "")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        kicking = null; managing = null
+                        RunController.notice.value = if (app.engine.kick(gid, mid)) "'${m.name}'님을 내보냈어요." else "내보내지 못했어요."
+                        afterChange()
+                    }, modifier = Modifier.testTag("confirmKick")) { Text("내보내기") }
+                },
+                dismissButton = { TextButton(onClick = { kicking = null }) { Text("취소") } },
+            )
+        }
     }
 
     leaving?.let { g ->

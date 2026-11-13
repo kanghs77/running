@@ -121,7 +121,7 @@ class App : Application() {
     }
 
     /** 화면에서 호출: 보내기 + 받기 */
-    fun syncNow() {
+    fun syncNow(fast: Boolean = false) {
         if (syncUi.value.syncing) return
         if (store.groups.value.isEmpty() && store.outbox.value.isEmpty()) return
         syncUi.value = syncUi.value.copy(syncing = true)
@@ -129,8 +129,10 @@ class App : Application() {
             try {
                 val flushed = try { engine.flushOutbox() } catch (e: Exception) { false }
                 if (!flushed) kickOutbox()
-                val r = engine.sync(fast = false)
-                syncUi.value = SyncUi(false, if (r.ok) System.currentTimeMillis() else syncUi.value.lastOkMs, r.status, true)
+                val r = engine.sync(fast = fast)
+                r.notices.firstOrNull()?.let { RunController.notice.value = it; try { scheduleBackground() } catch (e: Exception) {} }
+                syncUi.value = SyncUi(false, if (r.ok) System.currentTimeMillis() else syncUi.value.lastOkMs,
+                    if (fast) syncUi.value.status + r.status else r.status, true)
             } catch (e: Exception) {
                 syncUi.value = syncUi.value.copy(syncing = false, tried = true)
             }
@@ -200,6 +202,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val lastFull = app.store.groups.value.minOfOrNull { it.since["nostr"] ?: 0L } ?: nowS
             val r = app.engine.sync(fast = nowS - lastFull < 6 * 3600)
             app.notifyNewTracks(r.newTracks)
+            r.notices.firstOrNull()?.let { RunController.notice.value = it; try { app.scheduleBackground() } catch (e: Exception) {} }
             Result.success()
         } catch (e: Exception) { Result.success() }
     }

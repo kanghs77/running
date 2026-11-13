@@ -6,13 +6,13 @@ import kotlinx.serialization.json.Json
 val J = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
 
 @Serializable
-data class Identity(val id: String, val name: String)
+data class Identity(val id: String, val name: String, /** 그룹장 서명·키 교환용 비밀키(hex). 휴대폰 밖으로 나가지 않는다. */ val sk: String = "")
 
 @Serializable
 data class Settings(val notifications: Boolean = true, val nameSet: Boolean = false, val askedNotif: Boolean = false)
 
 @Serializable
-data class Member(val id: String, val name: String, val lastSeenMs: Long)
+data class Member(val id: String, val name: String, val lastSeenMs: Long, val pub: String = "")
 
 @Serializable
 data class Group(
@@ -24,6 +24,8 @@ data class Group(
     val members: List<Member> = emptyList(),
     /** 릴레이 이름 -> 마지막으로 성공한 동기화 시각(초) */
     val since: Map<String, Long> = emptyMap(),
+    /** 그룹을 만든 사람(그룹장)의 공개키. 그룹원 내보내기는 그룹장만 할 수 있다. */
+    val adminPub: String = "",
 ) {
     fun keyBytes(): ByteArray = Crypto.unb64(key)
     fun topic(): String = id
@@ -172,6 +174,10 @@ data class OutboxItem(
     val trackId: String? = null,
     val createdMs: Long,
     val done: List<String> = emptyList(),
+    /** 그룹이 이미 바뀌었거나 없어진 뒤에도 보낼 수 있도록 내용/키를 직접 담은 항목 */
+    val topic: String? = null,
+    val key: String? = null,
+    val body: String? = null,
 )
 
 @Serializable
@@ -183,10 +189,25 @@ data class Envelope(
     val ts: Long,
     val type: String,
     val track: TrackDto? = null,
+    val pub: String? = null,
+    val rekey: Rekey? = null,
 ) {
     companion object {
+        const val REKEY = "rekey"
         const val HELLO = "hello"
         const val LEAVE = "leave"
         const val TRACK = "track"
+    }
+}
+
+@Serializable
+data class RekeyEntry(val to: String, val box: String)
+
+/** 그룹원 내보내기: 그룹장이 새 그룹 키를 남는 사람 각각에게만 암호화해 전달하고 서명한다. */
+@Serializable
+data class Rekey(val removed: String, val entries: List<RekeyEntry>, val sig: String) {
+    companion object {
+        fun digest(oldGroupId: String, removed: String, entries: List<RekeyEntry>): ByteArray =
+            Crypto.sha256(("runmate-rekey-v1|$oldGroupId|$removed|" + entries.joinToString(",") { it.to + ":" + it.box }).toByteArray())
     }
 }

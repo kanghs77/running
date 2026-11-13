@@ -101,10 +101,15 @@ object Crypto {
 object Invite {
     private const val PREFIX = "runmate://join?"
 
-    fun encode(name: String, key: ByteArray): String =
-        PREFIX + "v=1&k=" + Crypto.b64(key) + "&n=" + Crypto.b64(name.toByteArray(Charsets.UTF_8))
+    data class Data(val name: String, val key: ByteArray, val adminPub: String)
 
-    fun decode(text: String): Pair<String, ByteArray>? = try {
+    fun encode(name: String, key: ByteArray, adminPub: String = ""): String =
+        PREFIX + "v=1&k=" + Crypto.b64(key) + "&n=" + Crypto.b64(name.toByteArray(Charsets.UTF_8)) +
+            (if (adminPub.isNotEmpty()) "&o=$adminPub" else "")
+
+    fun validPub(p: String?): Boolean = p != null && p.length == 64 && p.all { it in '0'..'9' || it in 'a'..'f' }
+
+    fun decode(text: String): Data? = try {
         val s = text.trim()
         if (!s.startsWith(PREFIX)) null
         else {
@@ -113,7 +118,8 @@ object Invite {
             }.toMap()
             val key = Crypto.unb64(params["k"] ?: "")
             val name = String(Crypto.unb64(params["n"] ?: ""), Charsets.UTF_8).trim().take(30)
-            if (params["v"] != "1" || key.size != 32 || name.isEmpty()) null else name to key
+            val o = params["o"] ?: ""
+            if (params["v"] != "1" || key.size != 32 || name.isEmpty() || (o.isNotEmpty() && !validPub(o))) null else Data(name, key, o)
         }
     } catch (e: Exception) { null }
 }

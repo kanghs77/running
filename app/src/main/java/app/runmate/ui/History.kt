@@ -43,6 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import app.runmate.RunController
+import app.runmate.core.Export
 import app.runmate.core.Fmt
 import app.runmate.core.Metric
 import app.runmate.core.Series
@@ -59,10 +65,22 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
     var filter by rememberSaveable { mutableIntStateOf(0) }
     val shown = when (filter) { 1 -> metas.filter { it.mine }; 2 -> metas.filter { !it.mine }; else -> metas }
     val unread = metas.count { it.unread }
+    val ctx = LocalContext.current
+    val zipLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) app.scope.launch(Dispatchers.IO) {
+            RunController.notice.value = try {
+                val n = ctx.contentResolver.openOutputStream(uri)!!.use { out -> Export.zip(out, app.store.metas.value) { app.store.loadTrack(it) } }
+                "기록 ${n}개를 내보냈어요."
+            } catch (e: Exception) { "내보내기에 실패했어요." }
+        }
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("기록", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (unread > 0) TextButton(onClick = { app.store.updateMetas { if (it.unread) it.copy(unread = false) else it } }) { Text("모두 읽음") }
+            if (metas.isNotEmpty()) TextButton(modifier = Modifier.testTag("exportAll"), onClick = {
+                try { zipLauncher.launch("runmate_" + fmtDay(System.currentTimeMillis()).replace('.', '-') + ".zip") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." }
+            }) { Text("전체 내보내기") }
         }
         Chips(listOf(0 to "전체", 1 to "내 기록", 2 to "그룹원 기록"), filter) { filter = it }
         if (shown.isEmpty()) {
@@ -115,6 +133,17 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
     var shareOpen by remember { mutableStateOf(false) }
     var eleBusy by remember { mutableStateOf(false) }
     var eleMsg by remember { mutableStateOf<String?>(null) }
+    val ctx = LocalContext.current
+    fun save(uri: android.net.Uri?, text: () -> String?) {
+        if (uri != null) app.scope.launch(Dispatchers.IO) {
+            RunController.notice.value = try {
+                ctx.contentResolver.openOutputStream(uri)!!.use { it.write(text()!!.toByteArray(Charsets.UTF_8)) }
+                "파일로 내보냈어요."
+            } catch (e: Exception) { "내보내기에 실패했어요." }
+        }
+    }
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri -> save(uri) { app.store.loadTrack(id)?.let { Export.csv(it) } } }
+    val gpxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri -> save(uri) { app.store.loadTrack(id)?.let { Export.gpx(it) } } }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,6 +190,10 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
             OutlinedButton(onClick = onCompare) { Text("분석에 추가") }
             if (meta.mine && groups.isNotEmpty()) Button(onClick = { shareOpen = true }) { Text("그룹에 보내기") }
             TextButton(onClick = { confirmDelete = true }) { Text("삭제", color = MaterialTheme.colorScheme.error) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { try { csvLauncher.launch(Export.fileBase(meta) + ".csv") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." } }) { Text("CSV로 내보내기") }
+            if (meta.mine && track?.oLat != null) OutlinedButton(onClick = { try { gpxLauncher.launch(Export.fileBase(meta) + ".gpx") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." } }) { Text("GPX로 내보내기") }
         }
         Spacer(Modifier.height(20.dp))
     }

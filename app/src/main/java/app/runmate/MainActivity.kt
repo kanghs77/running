@@ -32,7 +32,12 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import app.runmate.ui.AnalyzeScreen
 import app.runmate.ui.GroupsScreen
 import app.runmate.ui.HistoryScreen
@@ -47,6 +52,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(SystemBarStyle.dark(AColor.TRANSPARENT), SystemBarStyle.dark(AColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
         setContent { RunMateTheme { AppRoot() } }
+        // 앱을 보고 있는 동안에는 1분마다 가볍게 새 기록을 확인한다(달리는 중 제외).
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) { delay(60_000); if (!RunController.state.value.running) App.instance.syncNow(fast = true) }
+            }
+        }
     }
 
     override fun onStart() {

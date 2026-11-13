@@ -70,6 +70,13 @@ object Secp256k1 {
         return bytes32(mul(G, int(sk))!!.x)
     }
 
+    /** x-only 공개키와의 ECDH 공유 비밀(32바이트). 양쪽이 같은 값을 얻는다. */
+    fun ecdh(sk: ByteArray, pubX: ByteArray): ByteArray? {
+        if (!validSecret(sk) || pubX.size != 32) return null
+        val p = liftX(int(pubX)) ?: return null
+        return bytes32((mul(p, int(sk)) ?: return null).x)
+    }
+
     fun sign(msg: ByteArray, sk: ByteArray, aux: ByteArray = Crypto.randomBytes(32)): ByteArray {
         require(msg.size == 32 && aux.size == 32 && validSecret(sk))
         val d0 = int(sk)

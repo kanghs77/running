@@ -662,3 +662,133 @@ class NetTest {
         assertNull(c.lookup(pts)); assertNull(c.lookup(emptyList()))
     }
 }
+
+class KickTest {
+    private fun setup(): Triple<List<SyncTest.Dev>, FakeRelay, Group> = runBlocking {
+        val a = FakeRelay("ntfy")
+        val admin = SyncTest.Dev(listOf(a), "그룹장"); val m1 = SyncTest.Dev(listOf(a), "철수"); val m2 = SyncTest.Dev(listOf(a), "영희"); val bad = SyncTest.Dev(listOf(a), "말썽")
+        val g = admin.engine.createGroup("크루")
+        for (d in listOf(m1, m2, bad)) assertNotNull(d.engine.joinGroup(admin.engine.inviteFor(g)))
+        for (d in listOf(admin, m1, m2, bad)) d.engine.flushOutbox()
+        for (d in listOf(admin, m1, m2, bad)) d.engine.sync()
+        assertEquals(3, admin.store.groups.value[0].members.size)
+        assertTrue(admin.store.groups.value[0].members.all { Invite.validPub(it.pub) })
+        Triple(listOf(admin, m1, m2, bad), a, g)
+    }
+
+    @Test fun adminKickRotatesKeyForRemainingOnly() = runBlocking {
+        val (devs, relay, g) = setup()
+        val (admin, m1, m2, bad) = devs
+        // 내보내기 전에 보낸 기록의 그룹 연결이 유지되는지 확인용
+        m1.run("old"); m1.engine.shareTrack("old", listOf(g.id)); m1.engine.flushOutbox()
+        for (d in devs) d.engine.sync()
+        assertTrue(admin.engine.isAdmin(admin.store.groups.value[0])); assertFalse(m1.engine.isAdmin(m1.store.groups.value[0]))
+        val badId = bad.store.identity.value.id
+        assertFalse(m1.engine.kick(g.id, badId))                    // 그룹장이 아니면 불가
+        assertFalse(admin.engine.kick(g.id, "nobody"))
+        assertTrue(admin.engine.kick(g.id, badId))
+        val ng = admin.store.groups.value[0]
+        assertNotEquals(g.id, ng.id); assertEquals(2, ng.members.size)
+        assertTrue(admin.engine.flushOutbox())
+        val r1 = m1.engine.sync(); val r2 = m2.engine.sync(); val rb = bad.engine.sync()
+        assertEquals(ng.id, m1.store.groups.value[0].id); assertEquals(ng.key, m2.store.groups.value[0].key)
+        assertEquals(ng.adminPub, m1.store.groups.value[0].adminPub)
+        assertTrue(r1.notices.isEmpty()); assertTrue(r2.notices.isEmpty())
+        assertTrue(bad.store.groups.value.isEmpty())
+        assertTrue(rb.notices[0].contains("내보내졌어요"))
+        assertNotNull(bad.store.loadTrack("old"))                    // 이미 받은 기록은 남는다
+        assertEquals(listOf(ng.id), m2.store.meta("old")!!.groupIds) // 기록의 그룹 연결이 새 그룹으로 이어짐
+        assertEquals(listOf(ng.id), m1.store.meta("old")!!.groupIds)
+        // 새 그룹에서 계속 주고받기
+        for (d in listOf(admin, m1, m2)) d.engine.flushOutbox()
+        m1.run("new1"); m1.engine.shareTrack("new1", listOf(ng.id)); assertTrue(m1.engine.flushOutbox())
+        assertEquals(listOf("new1"), admin.engine.sync().newTracks.map { it.id })
+        assertEquals(listOf("new1"), m2.engine.sync().newTracks.map { it.id })
+        // 내보낸 사람이 옛 키로 직접 엿보려 해도 새 주제의 내용은 풀 수 없다
+        val msgs = relay.fetch(listOf(ng.id), 0)!!
+        assertTrue(msgs.isNotEmpty()); assertTrue(msgs.all { Crypto.open(g.keyBytes(), it.sealed) == null })
+        // 내보낸 사람이 옛 그룹에 올린 기록은 아무도 받지 않는다
+        bad.engine.joinGroup(Invite.encode(g.name, g.keyBytes()))
+        bad.run("spam"); bad.engine.shareTrack("spam", listOf(g.id)); bad.engine.flushOutbox()
+        assertEquals(0, admin.engine.sync().newTracks.size); assertEquals(0, m1.engine.sync().newTracks.size)
+        // 남은 멤버 목록에서 사라짐
+        assertTrue(m1.store.groups.value[0].members.none { it.id == badId })
+        // 두 번 연속 내보내기도 동작
+        assertTrue(admin.engine.kick(ng.id, m2.store.identity.value.id)); admin.engine.flushOutbox()
+        m1.engine.sync(); assertTrue(m2.engine.sync().notices.isNotEmpty())
+        assertEquals(admin.store.groups.value[0].id, m1.store.groups.value[0].id)
+    }
+
+    @Test fun forgedRekeyIsRejected() = runBlocking {
+        val (devs, relay, g) = setup()
+        val (admin, m1, _, bad) = devs
+        // 말썽 멤버가 그룹장인 척 '철수 내보내기'를 위조 (그룹 키는 알지만 그룹장 서명 키는 없음)
+        val fake = Rekey(m1.store.identity.value.id, emptyList(), Crypto.hex(Secp256k1.sign(Rekey.digest(g.id, m1.store.identity.value.id, emptyList()), bad.store.mySecret())))
+        val env = Envelope(id = "forged", from = admin.store.identity.value.id, name = "그룹장", ts = 1, type = Envelope.REKEY, pub = admin.store.myPub, rekey = fake)
+        relay.msgs.add(Triple(g.id, 0L, Crypto.seal(g.keyBytes(), J.encodeToString(Envelope.serializer(), env).toByteArray())))
+        val env2 = env.copy(id = "forged2", rekey = fake.copy(sig = "zz"))
+        relay.msgs.add(Triple(g.id, 0L, Crypto.seal(g.keyBytes(), J.encodeToString(Envelope.serializer(), env2).toByteArray())))
+        val env3 = env.copy(id = "forged3", rekey = null)
+        relay.msgs.add(Triple(g.id, 0L, Crypto.seal(g.keyBytes(), J.encodeToString(Envelope.serializer(), env3).toByteArray())))
+        val r = m1.engine.sync()
+        assertTrue(r.notices.isEmpty()); assertEquals(g.id, m1.store.groups.value[0].id)
+    }
+
+    @Test fun memberWithoutPubOrOldInviteIsHandled() = runBlocking {
+        val a = FakeRelay("ntfy")
+        val admin = SyncTest.Dev(listOf(a), "그룹장"); val old = SyncTest.Dev(listOf(a), "구버전초대"); val target = SyncTest.Dev(listOf(a), "대상")
+        val g = admin.engine.createGroup("크루")
+        old.engine.joinGroup(Invite.encode(g.name, g.keyBytes()))     // 그룹장 정보 없는 초대
+        target.engine.joinGroup(admin.engine.inviteFor(g))
+        for (d in listOf(admin, old, target)) d.engine.flushOutbox(); for (d in listOf(admin, old, target)) d.engine.sync()
+        assertTrue(admin.engine.kick(g.id, target.store.identity.value.id)); admin.engine.flushOutbox()
+        old.engine.sync()
+        assertEquals(g.id, old.store.groups.value[0].id)             // 그룹장을 모르면 서명을 확인할 수 없어 그대로 둔다
+        assertTrue(target.engine.sync().notices.isNotEmpty())
+        // 재시작 후에도 비밀키/공개키 유지
+        val again = Store(java.io.File(admin.store.journalFile.parentFile.parentFile.path))
+        assertEquals(admin.store.myPub, again.myPub)
+    }
+
+    @Test fun ecdhIsSymmetric() {
+        repeat(4) {
+            val a = Secp256k1.newSecret(); val b = Secp256k1.newSecret()
+            assertArrayEquals(Secp256k1.ecdh(a, Secp256k1.pubkey(b)), Secp256k1.ecdh(b, Secp256k1.pubkey(a)))
+        }
+        assertNull(Secp256k1.ecdh(Secp256k1.newSecret(), ByteArray(32) { 0xFF.toByte() }))
+    }
+}
+
+class ExportTest {
+    @Test fun csvGpxAndZip() {
+        val z = java.time.ZoneId.of("Asia/Seoul")
+        val mine = makeTrack("aaaa-1111", "me", "나", 1_760_000_000_000, n = 120)
+        val theirs = makeTrack("bbbb-2222", "o", "철수/..\\\"x", 1_760_003_600_000, n = 50, withOrigin = false)
+        val csv = Export.csv(mine).lines().filter { it.isNotBlank() }
+        assertEquals(mine.n + 1, csv.size); assertEquals(7, csv[0].split(',').size)
+        assertTrue(csv[1].startsWith("0.0,0.0,0.0,0.0,"))
+        val last = csv.last().split(',')
+        assertEquals(mine.x.last() / 10.0, last[1].toDouble(), 0.051); assertEquals(mine.distanceM, last[3].toDouble(), mine.distanceM * 0.01)
+        val gpx = Export.gpx(mine)!!
+        assertEquals(mine.n, Regex("<trkpt ").findAll(gpx).count())
+        val m = Regex("lat=\"([0-9.]+)\" lon=\"([0-9.]+)\"").find(gpx)!!
+        assertEquals(37.5, m.groupValues[1].toDouble(), 1e-6); assertEquals(127.0, m.groupValues[2].toDouble(), 1e-6)
+        assertTrue(gpx.contains("<time>2025-10-09T")); assertTrue(gpx.trim().endsWith("</gpx>"))
+        assertNull(Export.gpx(theirs))
+        val metas = listOf(Series.meta(mine, true), Series.meta(theirs, false))
+        val bos = java.io.ByteArrayOutputStream()
+        assertEquals(2, Export.zip(bos, metas, z) { if (it == mine.id) mine else theirs })
+        val names = ArrayList<String>(); val content = HashMap<String, String>()
+        java.util.zip.ZipInputStream(bos.toByteArray().inputStream()).use { zi ->
+            while (true) { val e = zi.nextEntry ?: break; names.add(e.name); content[e.name] = String(zi.readBytes(), Charsets.UTF_8) }
+        }
+        assertEquals(6, names.size)       // 요약 + CSV 2 + GPX 1 + JSON 2
+        assertTrue(names.all { !it.contains("..") && !it.contains("\\") && it.count { c -> c == '/' } <= 1 })
+        assertEquals(3, content["summary.csv"]!!.lines().filter { it.isNotBlank() }.size)
+        val json = content.entries.first { it.key.startsWith("json/") && it.key.contains("me") }.value
+        assertArrayEquals(mine.x, Track.fromDto(J.decodeFromString(TrackDto.serializer(), json))!!.x)
+        // 일부 기록 파일이 사라졌어도 나머지는 내보낸다
+        assertEquals(1, Export.zip(java.io.ByteArrayOutputStream(), metas, z) { if (it == mine.id) mine else null })
+        assertEquals(0, Export.zip(java.io.ByteArrayOutputStream(), emptyList(), z) { null })
+    }
+}

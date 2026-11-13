@@ -3,7 +3,6 @@ package app.runmate
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -169,19 +168,15 @@ class RunService : Service() {
     }
 
     private fun notification(distanceM: Double): Notification {
-        val stop = PendingIntent.getService(
-            this, 1, Intent(this, RunService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val start = recorder?.startWallMs ?: System.currentTimeMillis()
         return NotificationCompat.Builder(this, App.CH_RUN)
             .setSmallIcon(R.drawable.ic_run)
             .setContentTitle("달리기 기록 중")
-            .setContentText("${Fmt.km(distanceM)} km")
+            .setContentText("${Fmt.km(distanceM)} km · 종료하려면 앱을 여세요")
             .setOngoing(true).setOnlyAlertOnce(true)
             .setWhen(start).setUsesChronometer(true)
             .setContentIntent(App.mainIntent(this))
-            .addAction(0, "종료", stop)
+            // 실수로 눌리지 않도록 알림에는 종료 버튼을 두지 않는다. 종료는 앱 화면에서만 가능.
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }

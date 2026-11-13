@@ -27,11 +27,16 @@ class Store(private val dir: File) {
 
     val journalFile: File get() = File(dir, "run/current.csv")
 
+    /** 내 공개키(hex). 그룹원에게 알려져 그룹장 확인/키 전달에 쓰인다. */
+    val myPub: String by lazy { Crypto.hex(Secp256k1.pubkey(Crypto.unhex(_identity.value.sk))) }
+    fun mySecret(): ByteArray = Crypto.unhex(_identity.value.sk)
+
     init {
         dir.mkdirs(); trackDir.mkdirs()
         var id = read("identity.json", Identity.serializer())
-        if (id == null || id.id.isBlank()) {
-            id = Identity(Crypto.randomHex(16), "러너" + (1000 + (Math.random() * 9000).toInt()))
+        if (id == null || id.id.isBlank()) id = Identity(Crypto.randomHex(16), "러너" + (1000 + (Math.random() * 9000).toInt()))
+        if (id.sk.length != 64 || !runCatching { Secp256k1.validSecret(Crypto.unhex(id.sk)) }.getOrDefault(false)) {
+            id = id.copy(sk = Crypto.hex(Secp256k1.newSecret()))
             write("identity.json", Identity.serializer(), id)
         }
         _identity = MutableStateFlow(id)

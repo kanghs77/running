@@ -232,9 +232,10 @@ private fun RunningView(run: RunSnapshot) {
             if (run.px.isEmpty()) Box(contentAlignment = Alignment.Center) { Text("첫 위치를 기다리는 중", color = Dim) }
             else TrackPlot(listOf(PlotTrack(Green, run.px, run.py)))
         }
-        Spacer(Modifier.height(12.dp))
+        Text("화면을 끄거나 다른 앱을 써도 기록은 계속됩니다", color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(8.dp))
         Button(
-            onClick = { try { RunService.stop(ctx) } catch (e: Exception) { RunController.notice.value = "종료에 실패했어요. 알림의 '종료'를 눌러 주세요." } },
+            onClick = { try { RunService.stop(ctx) } catch (e: Exception) { RunController.notice.value = "종료에 실패했어요. 다시 눌러 주세요." } },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373), contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth().height(72.dp).testTag("stop"),
         ) { Text("종료", fontSize = 28.sp, fontWeight = FontWeight.Black) }
@@ -271,6 +272,6 @@ fun SendDialog(trackId: String, onDone: () -> Unit) {
                 Button(enabled = sel.isNotEmpty(), onClick = { app.share(trackId, sel); onDone() }, modifier = Modifier.testTag("send")) { Text("보내기") }
             }
         },
-        dismissButton = { if (groups.isNotEmpty()) TextButton(onClick = onDone, modifier = Modifier.testTag("nosend")) { Text("안 보내기") } },
+        dismissButton = { if (groups.isNotEmpty()) TextButton(onClick = onDone, modifier = Modifier.testTag("nosend")) { Text("안 보내고 종료") } },
     )
 }
