@@ -399,7 +399,7 @@ class UiTest {
         assertEquals(2, rule.onAllNodesWithText("설정").fetchSemanticsNodes().size)     // 제목 + 탭
         shot("40_settings_ko")
         rule.onNodeWithTag("lang_en").performClick(); rule.waitForIdle()
-        assertEquals("en", app.store.settings.value.lang); assertTrue(app.langEn.value)
+        assertEquals("en", app.store.settings.value.lang); assertEquals("en", app.lang.value)
         rule.onNodeWithText("Language").assertIsDisplayed()
         for (t in listOf("Run", "History", "Analyze", "Rank", "Groups")) rule.onNodeWithText(t).assertIsDisplayed()
         shot("41_settings_en")
@@ -433,14 +433,46 @@ class UiTest {
         try {
             java.util.Locale.setDefault(java.util.Locale.KOREA)
             rule.onNodeWithTag("lang_").performClick(); rule.waitForIdle()
-            assertFalse(app.langEn.value); rule.onNodeWithText("언어").assertIsDisplayed()
+            assertEquals("ko", app.lang.value); rule.onNodeWithText("언어").assertIsDisplayed()
             java.util.Locale.setDefault(java.util.Locale.JAPAN); app.applyLanguage(); rule.waitForIdle()
-            assertTrue(app.langEn.value); rule.onNodeWithText("Language").assertIsDisplayed()
+            assertEquals("ja", app.lang.value); rule.onNodeWithText("言語").assertIsDisplayed()
+            java.util.Locale.setDefault(java.util.Locale("th", "TH")); app.applyLanguage(); rule.waitForIdle()      // 지원하지 않는 언어 -> 영어
+            assertEquals("en", app.lang.value); rule.onNodeWithText("Language").assertIsDisplayed()
+            java.util.Locale.setDefault(java.util.Locale("in", "ID")); app.applyLanguage(); rule.waitForIdle()      // 인도네시아어 옛 코드
+            assertEquals("id", app.lang.value)
         } finally { java.util.Locale.setDefault(old) }
         // 재시작해도 선택한 언어 유지
         rule.onNodeWithTag("lang_ko").performClick(); rule.waitForIdle()
         assertEquals("ko", app.store.settings.value.lang)
         rule.onNodeWithText("달리기").assertIsDisplayed()
+    }
+
+    @Test fun allTenLanguagesRender() {
+        seed()
+        val expect = mapOf("zh" to listOf("跑步", "设置", "语言"), "ja" to listOf("ラン", "設定", "言語"), "es" to listOf("Correr", "Ajustes", "Idioma"),
+            "pt" to listOf("Correr", "Ajustes", "Idioma"), "de" to listOf("Laufen", "Optionen", "Sprache"), "fr" to listOf("Courir", "Réglages", "Langue"),
+            "ru" to listOf("Бег", "Настройки", "Язык"), "id" to listOf("Lari", "Setelan", "Bahasa"))
+        assertEquals(10, I18n.SUPPORTED.size)
+        for ((code, words) in expect) {
+            rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+            rule.onNodeWithTag("lang_$code").performScrollTo().performClick(); rule.waitForIdle()
+            assertEquals(code, app.lang.value)
+            for (w in words) assertTrue("$code: $w", rule.onAllNodesWithText(w).fetchSemanticsNodes().isNotEmpty())
+            shot("50_${code}_settings")
+            // 모든 탭이 그 언어로 문제없이 그려지는지
+            for (i in 0..4) { rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle(); if (code in listOf("de", "ru", "ja", "zh")) shot("50_${code}_tab$i") }
+            rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
+            rule.onAllNodesWithText(tr("나", "Me")).onFirst().performClick(); rule.waitForIdle()
+            rule.waitUntil(5000) { rule.onAllNodesWithText(tr("페이스", "Pace")).fetchSemanticsNodes().isNotEmpty() }
+            if (code in listOf("de", "ru")) shot("50_${code}_detail")
+            rule.onNodeWithText(tr("‹ 뒤로", "‹ Back")).performClick(); rule.waitForIdle()
+        }
+        // 달리는 화면도 번역된다
+        RunController.state.value = RunSnapshot(running = true, startElapsedMs = SystemClock.elapsedRealtime(), hasFix = true, accuracy = 5f)
+        rule.onNodeWithTag("tab0").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("BERHENTI").assertIsDisplayed()
+        shot("50_id_running")
+        RunController.state.value = RunSnapshot()
     }
 
     @Test fun coffeeFooterOpensPaymentLinkOnlyWhenConfigured() {

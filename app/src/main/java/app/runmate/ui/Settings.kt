@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.runmate.Donate
 import app.runmate.RunController
+import app.runmate.core.I18n
 import app.runmate.core.tr
 
 @Composable
@@ -42,7 +43,7 @@ fun SettingsScreen() {
         Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 6.dp)) {
                 // 언어 이름은 어느 언어에서든 알아볼 수 있게 고정 표기
-                for ((code, label) in listOf("" to tr("휴대폰 설정 따름", "Follow phone setting"), "ko" to "한국어", "en" to "English")) {
+                for ((code, label) in listOf("" to tr("휴대폰 설정 따름", "Follow phone setting")) + I18n.SUPPORTED) {
                     Row(
                         Modifier.fillMaxWidth().clickable {
                             app.store.updateSettings { it.copy(lang = code) }
@@ -56,7 +57,7 @@ fun SettingsScreen() {
                 }
             }
         }
-        Text(tr("한국어가 아닌 휴대폰에서는 영어로 표시됩니다.", "Phones set to a language other than Korean show English."), color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
+        Text(tr("지원하지 않는 언어의 휴대폰에서는 영어로 표시됩니다.", "Phones set to an unsupported language show English."), color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
         SectionTitle(tr("정보", "About"))
         val version = try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { null } ?: "-"
         Text(tr("런메이트 버전 $version", "RunMate version $version"), color = Dim, style = MaterialTheme.typography.bodySmall)

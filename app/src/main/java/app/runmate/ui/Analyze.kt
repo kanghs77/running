@@ -95,7 +95,7 @@ private fun CompareView(selected: SnapshotStateList<String>) {
             Box(Modifier.size(12.dp).background(Palette[i % Palette.size], CircleShape))
             Spacer(Modifier.width(8.dp))
             Text(
-                tr("${if (m.mine) "나" else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}", "${if (m.mine) "Me" else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}"),
+                tr("${if (m.mine) tr("나", "Me") else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}", "${if (m.mine) tr("나", "Me") else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}"),
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
             )
             TextButton(onClick = { selected.remove(id) }) { Text(tr("빼기", "Remove")) }
@@ -114,7 +114,7 @@ private fun CompareView(selected: SnapshotStateList<String>) {
             val t = tracks[id] ?: return@mapIndexedNotNull null
             if (!Series.has(t, metric)) return@mapIndexedNotNull null
             val m = metas.first { it.id == id }
-            ChartSeries(tr("${if (m.mine) "나" else m.ownerName} ${fmtDay(m.startMs)}", "${if (m.mine) "Me" else m.ownerName} ${fmtDay(m.startMs)}"), Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
+            ChartSeries(tr("${if (m.mine) tr("나", "Me") else m.ownerName} ${fmtDay(m.startMs)}", "${if (m.mine) tr("나", "Me") else m.ownerName} ${fmtDay(m.startMs)}"), Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
         }
         Spacer(Modifier.height(8.dp))
         if (series.isEmpty()) Text(if (tracks.isEmpty()) tr("불러오는 중…", "Loading…") else tr("선택한 기록에 이 데이터가 없어요. (API 고도는 인터넷 연결 후 받아집니다)", "The selected runs don't have this data. (API elevation is fetched once you're online)"), color = Dim)
@@ -164,7 +164,7 @@ private fun CompareView(selected: SnapshotStateList<String>) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(enabled = can) { toggle() }) {
                         Checkbox(checked = on, enabled = can, onCheckedChange = { toggle() })
                         Column {
-                            Text(tr("${if (m.mine) "나" else m.ownerName} · ${fmtDate(m.startMs)}", "${if (m.mine) "Me" else m.ownerName} · ${fmtDate(m.startMs)}"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(tr("${if (m.mine) tr("나", "Me") else m.ownerName} · ${fmtDate(m.startMs)}", "${if (m.mine) tr("나", "Me") else m.ownerName} · ${fmtDate(m.startMs)}"), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${Fmt.km(m.distanceM)} km · ${Fmt.duration(m.durationS)} · ${Fmt.pace(m.avgSpeed)}/km", color = Dim, style = MaterialTheme.typography.bodySmall)
                         }
                     }

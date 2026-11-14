@@ -3,7 +3,7 @@
 지도 없이 달리기 경로·속도·높이를 기록하고, QR로 맺은 그룹원과 기록을 주고받는 안드로이드 앱.
 
 ## 설치
-`dist/runmate-1.3.0.apk`를 휴대폰에 내려받아 실행 (Android 8.0 이상, "출처를 알 수 없는 앱 설치" 허용 필요).
+`dist/runmate-1.4.0.apk`를 휴대폰에 내려받아 실행 (Android 8.0 이상, "출처를 알 수 없는 앱 설치" 허용 필요).
 
 ## 구조
 - `app/src/main/java/app/runmate/core` — 안드로이드 비의존 로직 (기록 필터, 암호화, 릴레이, 동기화, 고도, 통계)
@@ -22,7 +22,12 @@ OpenTopoData SRTM 30m → 실패 시 Open-Meteo(Copernicus 90m). 달리기를 �
 기록 상세·분석 화면에서 지도/격자를 고를 수 있다. 지도는 OpenStreetMap 타일(키 불필요, 디스크 캐시)이며 위경도가 있는 내 기록만 표시된다. 달리는 중 화면은 지도를 쓰지 않는다.
 
 ## 언어 / 후원 버튼
-- 문구는 코드 안에서 `tr("한국어", "English")`로 관리한다. 휴대폰이 한국어면 한국어, 아니면 영어이며 설정 탭에서 바꿀 수 있다.
+- 지원 언어 10개: 한국어, English, 中文(简体), 日本語, Español, Português, Deutsch, Français, Русский, Bahasa Indonesia. 휴대폰 언어를 따르고(미지원 언어는 영어) 설정 탭에서 바꿀 수 있다.
+- 문구는 코드에서 `tr("한국어", "English")`로 쓰고, 나머지 8개 언어는 영어 문구를 열쇠로 `core/I18n.kt` 번역표에서 찾는다.
+- 문구를 추가/수정하면 `tools/i18n/trans1.py`·`trans2.py`에 번역을 넣고 아래를 실행해 `I18n.kt`를 다시 만든다(누락이 있으면 실패한다).
+```bash
+python3 tools/i18n/extract.py && python3 tools/i18n/gen.py
+```
 - 각 탭 아래의 커피 후원 문구는 `App.kt`의 `Donate.url`에 결제 링크를 넣어야 나타난다(비어 있으면 숨김).
 
 ## 빌드 / 테스트

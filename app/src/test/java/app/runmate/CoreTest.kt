@@ -825,18 +825,52 @@ class MapMathTest {
 }
 
 class LangTest {
+    private fun with(code: String, f: () -> Unit) { try { Lang.provider = { code }; f() } finally { Lang.provider = { "ko" } } }
+
     @Test fun labelsFollowLanguage() {
-        try {
-            assertEquals("페이스", Metric.PACE.label); assertEquals("분/km", Metric.PACE.unit); assertEquals("주별", Bucket.WEEK.label)
-            Lang.provider = { true }
+        assertEquals("페이스", Metric.PACE.label); assertEquals("분/km", Metric.PACE.unit); assertEquals("주별", Bucket.WEEK.label)
+        with("en") {
             assertEquals("Pace", Metric.PACE.label); assertEquals("min/km", Metric.PACE.unit); assertEquals("Weekly", Bucket.WEEK.label)
             assertEquals("Runs", RankBy.RUNS.label); assertEquals("min", XAxis.TIME.unit); assertEquals("runs", TrendMetric.RUNS.unit)
             assertTrue(Export.summaryCsv(emptyList()).contains("Date,Name"))
             assertEquals("b", tr("a", "b"))
-            // 모든 항목에 두 언어 문구가 있다
+        }
+        with("de") { assertEquals("Pace", Metric.PACE.label); assertEquals("Min/km", Metric.PACE.unit); assertEquals("Wöchentlich", Bucket.WEEK.label) }
+        with("ja") { assertEquals("ペース", Metric.PACE.label); assertTrue(Export.summaryCsv(emptyList()).contains("日付,名前")) }
+        for (code in I18n.LANGS) with(code) {
             for (m in Metric.values()) assertTrue(m.label.isNotBlank() && m.unit.isNotBlank())
             for (m in TrendMetric.values()) assertTrue(m.label.isNotBlank() && m.unit.isNotBlank())
-        } finally { Lang.provider = { false } }
+            assertEquals(7, Export.summaryCsv(emptyList()).trim().count { it == ',' })      // 표 제목의 칸 수 유지
+        }
         assertTrue(Export.summaryCsv(emptyList()).contains("날짜,이름"))
+    }
+
+    @Test fun translationWithPlaceholders() {
+        assertEquals("Neuer Lauf von Anna", I18n.translate("de", "New run from Anna"))
+        assertEquals("アンナさんの新しいラン記録", I18n.translate("ja", "New run from アンナ"))
+        // 인자 순서가 바뀌는 문장, 여러 인자
+        assertEquals("'Bob' aus der Gruppe 'Crew' entfernen?", I18n.translate("de", "Remove 'Bob' from the group 'Crew'?"))
+        assertEquals("Пробежек: 3 · 12.50 км · 1:02:03 · набор 40 м", I18n.translate("ru", "3 runs · 12.50 km · 1:02:03 · ascent 40m"))
+        // 비슷한 문구는 더 구체적인 쪽이 우선
+        assertEquals("3 neue Läufe", I18n.translate("de", "3 new runs")); assertEquals("3 Läufe", I18n.translate("de", "3 runs"))
+        assertEquals("Meine Läufe", I18n.translate("de", "My runs"))
+        // 값에 특수문자/줄바꿈/정규식 문자가 있어도 안전
+        assertEquals("Der Gruppe 'a.*(b)\\$1 \n x' beigetreten.", I18n.translate("de", "Joined the group 'a.*(b)\\$1 \n x'."))
+        // 표에 없는 문구, 모르는 언어는 영어 그대로
+        assertEquals("totally unknown text", I18n.translate("fr", "totally unknown text"))
+        assertEquals("Run", I18n.translate("xx", "Run")); assertEquals("", I18n.translate("fr", ""))
+        assertEquals("km", I18n.translate("zh", "km"))
+        // 같은 문구를 다시 물어도(캐시) 같은 결과
+        repeat(3) { assertEquals("Courir", I18n.translate("fr", "Run")) }
+    }
+
+    @Test fun languageResolution() {
+        assertEquals("ko", I18n.resolve("ko")); assertEquals("zh", I18n.resolve("zh")); assertEquals("pt", I18n.resolve("PT"))
+        assertEquals("id", I18n.resolve("in")); assertEquals("id", I18n.resolve("id"))
+        assertEquals("en", I18n.resolve("th")); assertEquals("en", I18n.resolve("")); assertEquals("en", I18n.resolve("ar"))
+        assertEquals(10, I18n.SUPPORTED.size); assertEquals(8, I18n.LANGS.size)
+        assertTrue(I18n.size() > 200)
+        with("fr") { assertEquals("Courir", tr("달리기", "Run")) }
+        assertEquals("달리기", tr("달리기", "Run"))
     }
 }

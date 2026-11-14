@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.runmate.core.Lang
+import app.runmate.core.I18n
 import java.util.concurrent.TimeUnit
 
 /** 달리기 서비스와 화면이 공유하는 상태 */
@@ -71,8 +72,8 @@ class App : Application() {
     lateinit var tiles: TileStore
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val syncUi = MutableStateFlow(SyncUi())
-    /** 현재 표시 언어가 영어인지. 화면이 이 값을 읽으므로 바뀌면 자동으로 다시 그려진다. */
-    val langEn = mutableStateOf(false)
+    /** 현재 표시 언어 코드. 화면이 이 값을 읽으므로 바뀌면 자동으로 다시 그려진다. */
+    val lang = mutableStateOf("ko")
     private val eleMutex = Mutex()
 
     override fun onCreate() {
@@ -81,8 +82,8 @@ class App : Application() {
         val http = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).writeTimeout(20, TimeUnit.SECONDS)
             .callTimeout(40, TimeUnit.SECONDS).build()
-        Lang.provider = { langEn.value }
-        langEn.value = Locale.getDefault().language != "ko"      // 첫 실행 기본 이름 등에 쓰이므로 저장소보다 먼저
+        Lang.provider = { lang.value }
+        lang.value = I18n.resolve(Locale.getDefault().language)   // 첫 실행 기본 이름 등에 쓰이므로 저장소보다 먼저
         store = Store(filesDir.resolve("data"))
         engine = SyncEngine(store, listOf(NtfyRelay(http), NostrRelay(http)))
         elevation = ElevationClient(http)
@@ -94,13 +95,10 @@ class App : Application() {
 
     fun initForTest(s: Store, e: SyncEngine, el: ElevationClient, t: TileStore = tiles) { store = s; engine = e; elevation = el; tiles = t; applyLanguage() }
 
-    /** 설정의 언어(없으면 휴대폰 언어)를 적용한다. 한국어 휴대폰은 한국어, 그 외는 영어. */
+    /** 설정의 언어(없으면 휴대폰 언어)를 적용한다. 지원하지 않는 언어의 휴대폰은 영어. */
     fun applyLanguage() {
-        langEn.value = when (store.settings.value.lang) {
-            "ko" -> false
-            "en" -> true
-            else -> Locale.getDefault().language != "ko"
-        }
+        val chosen = store.settings.value.lang
+        lang.value = if (I18n.SUPPORTED.any { it.first == chosen }) chosen else I18n.resolve(Locale.getDefault().language)
         createChannels()
     }
 

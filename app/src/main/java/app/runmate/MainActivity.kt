@@ -33,6 +33,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -111,7 +112,7 @@ fun AppRoot() {
                             if (i == 1 && unread > 0) BadgedBox(badge = { Badge { Text("$unread") } }) { Text(icon, fontSize = 20.sp) }
                             else Text(icon, fontSize = 20.sp)
                         },
-                        label = { Text(label) },
+                        label = { Text(label, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, fontSize = 10.sp) },
                     )
                 }
             }

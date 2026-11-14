@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -133,7 +134,8 @@ fun GroupsScreen() {
             }
         }
 
-        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 언어에 따라 글자가 길어질 수 있어 옆으로 밀 수 있게 한다
+        Row(Modifier.padding(top = 12.dp).fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { needName("create") }, modifier = Modifier.testTag("create")) { Text(tr("그룹 만들기", "Create group")) }
             OutlinedButton(onClick = { needName("scan") }) { Text(tr("QR 스캔", "Scan QR")) }
             OutlinedButton(onClick = { needName("code") }) { Text(tr("코드로 참여", "Join by code")) }
@@ -146,12 +148,13 @@ fun GroupsScreen() {
                     val admin = app.engine.isAdmin(g)
                     Text(g.name + if (admin) tr("  · 내가 그룹장", "  · You're the owner") else "", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(tr("${g.members.size + 1}명: 나", "${g.members.size + 1} members: Me") + g.members.joinToString("") { ", ${it.name}" }, color = Dim, style = MaterialTheme.typography.bodySmall)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { qrFor = g }) { Text(tr("초대 QR", "Invite QR"), maxLines = 1) }
+                        if (admin && g.members.isNotEmpty()) TextButton(onClick = { managing = g.id }, modifier = Modifier.testTag("manage")) { Text(tr("멤버 관리", "Members"), maxLines = 1) }
+                        TextButton(onClick = { leaving = g }) { Text(tr("나가기", "Leave"), color = MaterialTheme.colorScheme.error, maxLines = 1) }
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { qrFor = g }) { Text(tr("초대 QR", "Invite QR")) }
-                        if (admin && g.members.isNotEmpty()) TextButton(onClick = { managing = g.id }, modifier = Modifier.testTag("manage")) { Text(tr("멤버 관리", "Members")) }
-                        TextButton(onClick = { leaving = g }) { Text(tr("나가기", "Leave"), color = MaterialTheme.colorScheme.error) }
-                        Spacer(Modifier.weight(1f))
-                        Text(tr("알림", "Alerts"), color = Dim, style = MaterialTheme.typography.labelMedium)
+                        Text(tr("알림", "Alerts"), color = Dim, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
                         Switch(checked = !g.muted, enabled = settings.notifications, onCheckedChange = { on -> app.store.updateGroup(g.id) { it.copy(muted = !on) } })
                     }
                 }

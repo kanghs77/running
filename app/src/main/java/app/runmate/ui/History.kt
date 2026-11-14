@@ -167,7 +167,7 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
             val settings by app.store.settings.collectAsStateWithLifecycle()
             val canMap = t.oLat != null
             val distPts = remember(t) { Series.cumDist(t).let { c -> DoubleArray(t.n) { c[it] / 1000.0 } }.let { Pts(it, it) } }
-            val pages = remember(t, app.langEn.value) {
+            val pages = remember(t, app.lang.value) {
                 buildList {
                     if (hasApi) add(ChartPage(tr("높이(API)", "Elev (API)"), "m", Palette[1], Series.of(t, XAxis.DISTANCE, Metric.ELE_API, 20.0)))
                     add(ChartPage(tr("높이(GPS)", "Elev (GPS)"), "m", Palette[2], Series.of(t, XAxis.DISTANCE, Metric.ELE_GPS, 20.0)))
