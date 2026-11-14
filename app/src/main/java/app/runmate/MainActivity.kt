@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         RunController.uiVisible.value = true
         // 달리는 중에는 통신하지 않는다(전력 절약)
-        if (!RunController.state.value.running) App.instance.syncNow()
+        if (!RunController.state.value.running) { App.instance.syncNow(); App.instance.coffee.refresh() }
     }
 
     override fun onStop() {

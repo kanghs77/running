@@ -3,7 +3,7 @@
 지도 없이 달리기 경로·속도·높이를 기록하고, QR로 맺은 그룹원과 기록을 주고받는 안드로이드 앱.
 
 ## 설치
-`dist/runmate-1.5.0.apk`를 휴대폰에 내려받아 실행 (Android 8.0 이상, "출처를 알 수 없는 앱 설치" 허용 필요).
+`dist/runmate-1.6.0.apk`를 휴대폰에 내려받아 실행 (Android 8.0 이상, "출처를 알 수 없는 앱 설치" 허용 필요).
 
 ## 구조
 - `app/src/main/java/app/runmate/core` — 안드로이드 비의존 로직 (기록 필터, 암호화, 릴레이, 동기화, 고도, 통계)
@@ -28,7 +28,8 @@ OpenTopoData SRTM 30m → 실패 시 Open-Meteo(Copernicus 90m). 달리기를 �
 ```bash
 python3 tools/i18n/extract.py && python3 tools/i18n/gen.py
 ```
-- 각 탭 아래의 커피 후원 문구는 `App.kt`의 `Donate.url`에 결제 링크를 넣어야 나타난다(비어 있으면 숨김).
+- 각 탭 아래의 "커피 선물하기"는 Google Play 인앱결제(`Coffee.kt`, 소모성 상품 ID `coffee`)다. Play 스토어에서 설치했고 Play Console에 상품이 등록되어 가격이 조회될 때만 보인다. 스토어 밖에서 설치한 APK에서는 보이지 않는다.
+- Play 업로드용 번들: `./gradlew :app:bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`
 
 ## 빌드 / 테스트
 ```bash

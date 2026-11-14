@@ -53,6 +53,15 @@ class UiTest {
     private val relayB = FakeRelay("nostr")
     private lateinit var friend: SyncTest.Dev
     private lateinit var tileServer: okhttp3.mockwebserver.MockWebServer
+    private lateinit var coffee: FakeCoffee
+
+    /** Play 결제 대신 쓰는 가짜 상점 */
+    class FakeCoffee : CoffeeStore {
+        override val price = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+        var refreshed = 0; var bought = 0; var lastActivity: android.app.Activity? = null
+        override fun refresh() { refreshed++ }
+        override fun buy(activity: android.app.Activity) { bought++; lastActivity = activity }
+    }
     private val tilePaths = java.util.Collections.synchronizedList(ArrayList<String>())
     private val tileAgents = java.util.Collections.synchronizedList(ArrayList<String>())
 
@@ -62,7 +71,6 @@ class UiTest {
             WorkManagerTestInitHelper.initializeTestWorkManager(app, Configuration.Builder().build())
             val store = Store(tmpDir())
             store.updateSettings { it.copy(lang = "ko") }       // 테스트 문구는 한국어 기준
-            Donate.url = ""
             // 죽은 주소: 테스트 중 실제 고도 API를 호출하지 않는다
             val dead = ElevationClient(OkHttpClient.Builder().connectTimeout(300, TimeUnit.MILLISECONDS).build(), "http://127.0.0.1:1/a", "http://127.0.0.1:1/b", 0)
             tileServer = okhttp3.mockwebserver.MockWebServer()
@@ -76,6 +84,7 @@ class UiTest {
             }
             tileServer.start()
             app.initForTest(store, SyncEngine(store, listOf(relayA, relayB)), dead, TileStore(tmpDir(), tileServer.url("/").toString().trimEnd('/')))
+            coffee = FakeCoffee(); app.coffee = coffee
             RunController.state.value = RunSnapshot(); RunController.finished.value = null; RunController.notice.value = null
             friend = SyncTest.Dev(listOf(relayA, relayB), "철수")
         }
@@ -87,6 +96,12 @@ class UiTest {
     private val app: App get() = ApplicationProvider.getApplicationContext()
     private fun shot(name: String) = rule.onAllNodes(isRoot()).onFirst().captureRoboImage("build/shots/$name.png")
     private fun dialogShot(name: String) = rule.onNode(isDialog()).captureRoboImage("build/shots/$name.png")
+
+    private fun startedIntents(): List<Intent> {
+        val out = ArrayList<Intent>()
+        while (true) out.add(shadowOf(app as Application).nextStartedActivity ?: break)
+        return out
+    }
 
     private fun seed() = runBlocking {
         val g1 = app.engine.createGroup("한강 크루"); val g2 = app.engine.createGroup("회사 러닝")
@@ -512,23 +527,40 @@ class UiTest {
         RunController.state.value = RunSnapshot()
     }
 
-    @Test fun coffeeFooterOpensPaymentLinkOnlyWhenConfigured() {
-        assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())   // 링크가 없으면 숨김
-        Donate.url = "https://example.com/coffee"
+    @Test fun coffeeFooterUsesPlayBillingOnlyWhenAvailable() {
+        // Play에서 가격을 받아오지 못하면(스토어 밖 설치, 상품 미등록) 버튼이 없다
+        assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())
+        coffee.price.value = "₩2,900"
         rule.waitForIdle()
         for (i in 0..5) {
             rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle()
             rule.onNodeWithTag("coffee").assertIsDisplayed()
         }
+        assertTrue(rule.onAllNodesWithText("₩2,900", substring = true).fetchSemanticsNodes().isNotEmpty())      // Play가 준 가격을 그대로 표시
         shot("48_coffee_footer")
         rule.onNodeWithTag("coffee").performClick(); rule.waitForIdle()
-        val i = shadowOf(app as Application).nextStartedActivity
-        assertEquals(Intent.ACTION_VIEW, i.action); assertEquals("https://example.com/coffee", i.dataString)
+        assertEquals(1, coffee.bought); assertTrue(coffee.lastActivity is MainActivity)
+        assertTrue(startedIntents().none { it.action == Intent.ACTION_VIEW })        // 외부 결제 페이지를 열지 않는다
         // 달리는 중에는 숨김
         RunController.state.value = RunSnapshot(running = true, startElapsedMs = SystemClock.elapsedRealtime())
         rule.onNodeWithTag("tab0").performClick(); rule.waitForIdle()
         assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())
-        RunController.state.value = RunSnapshot(); Donate.url = ""
+        RunController.state.value = RunSnapshot()
+        // 다른 언어에서도 가격이 들어간 문구가 번역된다
+        assertEquals("☕ Spendiere dem Entwickler einen Kaffee · ₩2,900", I18n.translate("de", "☕ Buy the developer a coffee · ₩2,900"))
+    }
+
+    @Test fun realPlayBillingIsSafeWithoutPlayStore() {
+        // 테스트 환경에는 Play 스토어가 없다: 죽지 않고, 가격이 없으니 버튼도 없어야 한다
+        val real = PlayCoffee(app)
+        real.refresh(); real.refresh()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertNull(real.price.value)
+        real.buy(rule.activity)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertTrue(startedIntents().none { it.action == Intent.ACTION_VIEW })
+        assertNotNull(RunController.notice.value)
+        RunController.notice.value = null
     }
 
     @Test fun mutedNotificationsStillMarkUnread() {

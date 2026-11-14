@@ -60,9 +60,6 @@ object RunController {
     val uiVisible = MutableStateFlow(false)
 }
 
-/** 커피 후원 링크. 비어 있으면 버튼을 숨긴다. 결제 계정이 정해지면 여기에 주소만 넣으면 된다. */
-object Donate { var url by mutableStateOf("") }
-
 data class SyncUi(val syncing: Boolean = false, val lastOkMs: Long = 0, val status: Map<String, Boolean> = emptyMap(), val tried: Boolean = false)
 
 class App : Application() {
@@ -70,6 +67,7 @@ class App : Application() {
     lateinit var engine: SyncEngine
     lateinit var elevation: ElevationClient
     lateinit var tiles: TileStore
+    lateinit var coffee: CoffeeStore
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val syncUi = MutableStateFlow(SyncUi())
     /** 현재 표시 언어 코드. 화면이 이 값을 읽으므로 바뀌면 자동으로 다시 그려진다. */
@@ -88,6 +86,7 @@ class App : Application() {
         engine = SyncEngine(store, listOf(NtfyRelay(http), NostrRelay(http)))
         elevation = ElevationClient(http)
         tiles = TileStore(cacheDir)
+        coffee = PlayCoffee(this)
         applyLanguage()
         recoverJournal()
         try { scheduleBackground() } catch (e: Exception) { /* WorkManager 미초기화(테스트) */ }

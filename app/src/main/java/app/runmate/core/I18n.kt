@@ -170,6 +170,8 @@ object I18n {
             "请对准朋友的邀请二维码", "友だちの招待QRコードを映してください", "Apunta al código QR de invitación de tu amigo", "Aponte para o QR de convite do seu amigo", "Auf den Einladungs-QR-Code deines Freundes richten", "Visez le QR d'invitation de votre ami", "Наведите камеру на QR-код приглашения друга", "Arahkan ke kode QR undangan teman Anda")
         add("Align a run (pick one to move/rotate)",
             "对齐位置（选择一条记录进行移动/旋转）", "位置合わせ（記録を選んで移動・回転）", "Alinear una carrera (elige una para mover/rotar)", "Alinhar uma corrida (escolha uma para mover/girar)", "Lauf ausrichten (einen wählen zum Verschieben/Drehen)", "Aligner une course (choisissez-en une à déplacer/pivoter)", "Совместить пробежку (выберите, чтобы сдвинуть/повернуть)", "Sejajarkan lari (pilih satu untuk digeser/diputar)")
+        add("Purchases aren't available right now.",
+            "目前无法进行支付。", "現在は購入手続きを行えません。", "Las compras no están disponibles en este momento.", "As compras não estão disponíveis no momento.", "Käufe sind derzeit nicht möglich.", "Les achats ne sont pas disponibles pour le moment.", "Покупки сейчас недоступны.", "Pembelian tidak tersedia saat ini.")
         add("Only the latest 30 groups are shown.",
             "仅显示最近 30 组。", "直近30件のまとまりのみ表示します。", "Solo se muestran los últimos 30 grupos.", "São mostrados apenas os 30 grupos mais recentes.", "Es werden nur die letzten 30 Gruppen angezeigt.", "Seuls les 30 derniers regroupements sont affichés.", "Показаны только последние 30 интервалов.", "Hanya 30 kelompok terbaru yang ditampilkan.")
         add("GPS is off. Please turn on location.",
@@ -190,8 +192,12 @@ object I18n {
             "路线（相对起点的坐标）", "ルート（スタート地点からの相対座標）", "Ruta (relativa al punto de salida)", "Rota (relativa ao ponto de partida)", "Strecke (relativ zum Startpunkt)", "Parcours (relatif au point de départ)", "Маршрут (относительно точки старта)", "Rute (relatif terhadap titik awal)")
         add("{0} new run(s) from your groups  ›",
             "收到 {0} 条群组成员的新记录  ›", "グループメンバーの新しい記録が{0}件届きました  ›", "{0} carrera(s) nueva(s) de tus grupos  ›", "{0} corrida(s) nova(s) dos seus grupos  ›", "{0} neue(r) Lauf/Läufe aus deinen Gruppen  ›", "{0} nouvelle(s) course(s) de vos groupes  ›", "Новых пробежек из ваших групп: {0}  ›", "{0} lari baru dari grup Anda  ›")
+        add("☕ Buy the developer a coffee · {0}",
+            "☕ 请开发者喝杯咖啡 · {0}", "☕ 開発者にコーヒーをおごる · {0}", "☕ Invita a un café al desarrollador · {0}", "☕ Pague um café para o desenvolvedor · {0}", "☕ Spendiere dem Entwickler einen Kaffee · {0}", "☕ Offrir un café au développeur · {0}", "☕ Угостить разработчика кофе · {0}", "☕ Traktir kopi untuk pengembang · {0}")
         add("You're already in this group: {0}",
             "你已在该群组中：{0}", "すでに参加しているグループです: {0}", "Ya estás en este grupo: {0}", "Você já está neste grupo: {0}", "Du bist bereits in dieser Gruppe: {0}", "Vous êtes déjà dans ce groupe : {0}", "Вы уже в этой группе: {0}", "Anda sudah ada di grup ini: {0}")
+        add("The purchase wasn't completed.",
+            "支付未完成。", "購入は完了しませんでした。", "La compra no se completó.", "A compra não foi concluída.", "Der Kauf wurde nicht abgeschlossen.", "L'achat n'a pas abouti.", "Покупка не завершена.", "Pembelian tidak selesai.")
         add("Tap a bar to see exact values",
             "点按柱形可查看精确数值", "棒をタップすると正確な値を表示します", "Toca una barra para ver los valores exactos", "Toque em uma barra para ver os valores exatos", "Tippe auf einen Balken, um genaue Werte zu sehen", "Touchez une barre pour voir les valeurs exactes", "Нажмите на столбец, чтобы увидеть точные значения", "Ketuk batang untuk melihat nilai persisnya")
         add("Remove '{0}' from the group '{1}'?",
@@ -200,6 +206,8 @@ object I18n {
             "无法打开支付页面。", "支払いページを開けません。", "No se puede abrir la página de pago.", "Não foi possível abrir a página de pagamento.", "Die Zahlungsseite kann nicht geöffnet werden.", "Impossible d'ouvrir la page de paiement.", "Не удаётся открыть страницу оплаты.", "Tidak dapat membuka halaman pembayaran.")
         add("Couldn't remove the member.",
             "移除失败。", "外せませんでした。", "No se pudo eliminar al miembro.", "Não foi possível remover o membro.", "Mitglied konnte nicht entfernt werden.", "Impossible de retirer le membre.", "Не удалось удалить участника.", "Gagal mengeluarkan anggota.")
+        add("Thank you for the coffee! ☕",
+            "谢谢你的咖啡！☕", "コーヒーをありがとうございます！☕", "¡Gracias por el café! ☕", "Obrigado pelo café! ☕", "Danke für den Kaffee! ☕", "Merci pour le café ! ☕", "Спасибо за кофе! ☕", "Terima kasih atas kopinya! ☕")
         add("{0} km · Open the app to stop",
             "{0} km · 打开应用以结束", "{0} km · 終了するにはアプリを開いてください", "{0} km · Abre la app para detener", "{0} km · Abra o app para parar", "{0} km · Zum Beenden App öffnen", "{0} km · Ouvrez l'appli pour arrêter", "{0} км · Откройте приложение, чтобы остановить", "{0} km · Buka aplikasi untuk berhenti")
         add("Location permission needed",
@@ -228,6 +236,9 @@ object I18n {
             "打开位置设置", "位置情報の設定を開く", "Abrir ajustes de ubicación", "Abrir ajustes de localização", "Standorteinstellungen öffnen", "Ouvrir les réglages de localisation", "Открыть настройки геолокации", "Buka setelan lokasi")
         add("Finish without sending",
             "不发送并结束", "送らずに終了", "Terminar sin enviar", "Terminar sem enviar", "Ohne Senden beenden", "Terminer sans envoyer", "Завершить без отправки", "Selesai tanpa mengirim")
+    }
+
+    private fun part2() {
         add("Smoothing: {0} s average",
             "平滑：{0} 秒平均", "なめらかさ: {0}秒平均", "Suavizado: media de {0} s", "Suavização: média de {0} s", "Glättung: {0}-s-Mittel", "Lissage : moyenne sur {0} s", "Сглаживание: среднее за {0} с", "Penghalusan: rata-rata {0} dtk")
         add("Location (GPS) is off",
@@ -236,9 +247,6 @@ object I18n {
             "已加入群组“{0}”。", "グループ「{0}」に参加しました。", "Te uniste al grupo '{0}'.", "Você entrou no grupo '{0}'.", "Der Gruppe '{0}' beigetreten.", "Vous avez rejoint le groupe '{0}'.", "Вы вступили в группу «{0}».", "Bergabung dengan grup '{0}'.")
         add("  · You're the owner",
             "  · 我是群主", "  · 自分がオーナー", "  · Eres el propietario", "  · Você é o dono", "  · Du bist Inhaber", "  · Vous êtes propriétaire", "  · Вы владелец", "  · Anda pemilik")
-    }
-
-    private fun part2() {
         add("No runs received yet",
             "还没有收到记录", "まだ受け取った記録がありません", "Aún no has recibido carreras", "Nenhuma corrida recebida ainda", "Noch keine Läufe empfangen", "Aucune course reçue pour le moment", "Полученных пробежек пока нет", "Belum ada lari yang diterima")
         add("Weak GPS signal (±{0}m)",
@@ -311,6 +319,9 @@ object I18n {
             "成员记录", "メンバーの記録", "Carreras de miembros", "Corridas dos membros", "Läufe der Mitglieder", "Courses des membres", "Пробежки участников", "Lari anggota")
         add("Run complete!",
             "跑步完成！", "ラン完了！", "¡Carrera completada!", "Corrida concluída!", "Lauf beendet!", "Course terminée !", "Пробежка завершена!", "Lari selesai!")
+    }
+
+    private fun part3() {
         add("Select period",
             "选择时间范围", "期間を選択", "Elegir periodo", "Escolher período", "Zeitraum wählen", "Choisir la période", "Выберите период", "Pilih periode")
         add("Compare runs",
@@ -319,9 +330,6 @@ object I18n {
             "还没有记录。", "まだ記録がありません。", "Aún no hay carreras.", "Ainda não há corridas.", "Noch keine Läufe.", "Aucune course pour le moment.", "Пробежек пока нет.", "Belum ada lari.")
         add("Create group",
             "创建群组", "グループ作成", "Crear grupo", "Criar grupo", "Gruppe erstellen", "Créer un groupe", "Создать группу", "Buat grup")
-    }
-
-    private fun part3() {
         add("Join by code",
             "用邀请码加入", "コードで参加", "Unirse con código", "Entrar com código", "Per Code beitreten", "Rejoindre par code", "Вступить по коду", "Gabung dengan kode")
         add("{0} members: Me",
@@ -394,6 +402,9 @@ object I18n {
             "爬升 m", "上昇 m", "Ascenso m", "Subida m", "Anstieg m", "Dénivelé m", "Набор, м", "Tanjakan m")
         add("Language",
             "语言", "言語", "Idioma", "Idioma", "Sprache", "Langue", "Язык", "Bahasa")
+    }
+
+    private fun part4() {
         add("History",
             "记录", "履歴", "Historial", "Histórico", "Verlauf", "Historique", "История", "Riwayat")
         add("Analyze",
@@ -402,9 +413,6 @@ object I18n {
             "按次", "ランごと", "Por carrera", "Por corrida", "Pro Lauf", "Par course", "По пробежкам", "Per lari")
         add("Monthly",
             "按月", "月別", "Mensual", "Mensal", "Monatlich", "Par mois", "По месяцам", "Bulanan")
-    }
-
-    private fun part4() {
         add("No name",
             "未命名", "名前なし", "Sin nombre", "Sem nome", "Ohne Namen", "Sans nom", "Без имени", "Tanpa nama")
         add("4 weeks",
@@ -477,6 +485,9 @@ object I18n {
             "路线", "ルート", "Ruta", "Rota", "Strecke", "Parcours", "Маршрут", "Rute")
         add("START",
             "开始", "スタート", "INICIAR", "INICIAR", "START", "DÉMARRER", "СТАРТ", "MULAI")
+    }
+
+    private fun part5() {
         add("Allow",
             "允许", "許可する", "Permitir", "Permitir", "Erlauben", "Autoriser", "Разрешить", "Izinkan")
         add("{0} (me)",
@@ -485,9 +496,6 @@ object I18n {
             "{0} 次", "{0}回", "{0} carreras", "{0} corridas", "{0} Läufe", "{0} courses", "Пробежек: {0}", "{0} kali")
         add("Apply",
             "应用", "適用", "Aplicar", "Aplicar", "Anwenden", "Appliquer", "Применить", "Terapkan")
-    }
-
-    private fun part5() {
         add("About",
             "关于", "情報", "Acerca de", "Sobre", "Info", "À propos", "О приложении", "Tentang")
         add("Reset",

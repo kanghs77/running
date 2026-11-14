@@ -1,8 +1,7 @@
 package app.runmate.ui
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.runmate.Donate
 import app.runmate.RunController
 import app.runmate.core.I18n
 import app.runmate.core.tr
@@ -64,20 +62,16 @@ fun SettingsScreen() {
     }
 }
 
-fun openDonate(ctx: Context) {
-    try {
-        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Donate.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (e: Exception) {
-        RunController.notice.value = tr("결제 페이지를 열 수 없어요.", "Can't open the payment page.")
-    }
-}
-
-/** 각 탭 맨 아래의 옅은 후원 문구. 후원 링크가 설정된 경우에만 보인다. */
+/** 각 탭 맨 아래의 옅은 "커피 선물하기". Play 인앱결제가 가능할 때(가격이 조회됐을 때)만 보인다. */
 @Composable
 fun CoffeeFooter() {
-    if (Donate.url.isBlank()) return
+    val price by app.coffee.price.collectAsStateWithLifecycle()
+    val p = price ?: return
     val ctx = LocalContext.current
-    Box(Modifier.fillMaxWidth().clickable { openDonate(ctx) }.testTag("coffee").padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-        Text(tr("☕ 개발자에게 커피 선물하기 · $2", "☕ Buy the developer a coffee · $2"), color = Color(0x59FFFFFF), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+    Box(
+        Modifier.fillMaxWidth().clickable { (ctx as? Activity)?.let { app.coffee.buy(it) } }.testTag("coffee").padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(tr("☕ 개발자에게 커피 선물하기 · $p", "☕ Buy the developer a coffee · $p"), color = Color(0x59FFFFFF), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
     }
 }
