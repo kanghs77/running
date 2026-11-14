@@ -16,7 +16,7 @@ class SyncEngine(
 ) {
     private val mutex = Mutex()
 
-    fun createGroup(name: String): Group = addGroup(name.trim().take(30).ifEmpty { "그룹" }, Crypto.randomBytes(32), store.myPub)!!
+    fun createGroup(name: String): Group = addGroup(name.trim().take(30).ifEmpty { tr("그룹", "Group") }, Crypto.randomBytes(32), store.myPub)!!
 
     fun inviteFor(g: Group): String = Invite.encode(g.name, g.keyBytes(), g.adminPub)
 
@@ -154,7 +154,7 @@ class SyncEngine(
         if (env.v != 1 || env.id.isBlank() || env.from.isBlank() || env.from.length > 64) return null
         if (!store.markSeen(g.id + ":" + env.id)) return null
         if (env.from == me.id) return null
-        val name = env.name.trim().take(20).ifEmpty { "이름없음" }
+        val name = env.name.trim().take(20).ifEmpty { tr("이름없음", "No name") }
         val ts = env.ts.coerceAtMost(now() + 3600_000)
 
         if (env.type == Envelope.REKEY) { applyRekey(g, env.rekey ?: return null); return null }
@@ -244,8 +244,8 @@ class SyncEngine(
         if (newKey != null) { migrate(g, newKey, rk.removed); return }
         leaveGroup(g.id)
         notices.add(
-            if (rk.removed == me.id) "'${g.name}' 그룹에서 내보내졌어요."
-            else "'${g.name}' 그룹의 키가 바뀌었어요. 그룹장에게 초대 QR을 다시 받아 주세요."
+            if (rk.removed == me.id) tr("'${g.name}' 그룹에서 내보내졌어요.", "You were removed from the group '${g.name}'.")
+            else tr("'${g.name}' 그룹의 키가 바뀌었어요. 그룹장에게 초대 QR을 다시 받아 주세요.", "The key of group '${g.name}' has changed. Ask the group owner for a new invite QR.")
         )
     }
 

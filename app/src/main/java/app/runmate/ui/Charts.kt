@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.Canvas
+import app.runmate.core.tr
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -209,7 +210,7 @@ fun LineChart(
                 Text("● ${s.label}: ${if (ok) yFormat(s.pts.ys[i!!]) + " " + yUnit else "-"}", color = s.color, style = MaterialTheme.typography.labelMedium)
             }
         } else if (showCursorValues && valid.isNotEmpty()) {
-            Text("탭: 값·위치 보기 · 두 손가락: 확대/축소", style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
+            Text(tr("탭: 값·위치 보기 · 두 손가락: 확대/축소", "Tap: value & location · Two fingers: zoom"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
         }
     }
 }

@@ -1,6 +1,7 @@
 package app.runmate
 
 import android.app.Application
+import app.runmate.core.tr
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -41,6 +42,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import java.io.File
+import java.util.Locale
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import app.runmate.core.Lang
 import java.util.concurrent.TimeUnit
 
 /** 달리기 서비스와 화면이 공유하는 상태 */
@@ -53,6 +59,9 @@ object RunController {
     val uiVisible = MutableStateFlow(false)
 }
 
+/** 커피 후원 링크. 비어 있으면 버튼을 숨긴다. 결제 계정이 정해지면 여기에 주소만 넣으면 된다. */
+object Donate { var url by mutableStateOf("") }
+
 data class SyncUi(val syncing: Boolean = false, val lastOkMs: Long = 0, val status: Map<String, Boolean> = emptyMap(), val tried: Boolean = false)
 
 class App : Application() {
@@ -62,6 +71,8 @@ class App : Application() {
     lateinit var tiles: TileStore
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val syncUi = MutableStateFlow(SyncUi())
+    /** 현재 표시 언어가 영어인지. 화면이 이 값을 읽으므로 바뀌면 자동으로 다시 그려진다. */
+    val langEn = mutableStateOf(false)
     private val eleMutex = Mutex()
 
     override fun onCreate() {
@@ -70,21 +81,33 @@ class App : Application() {
         val http = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).writeTimeout(20, TimeUnit.SECONDS)
             .callTimeout(40, TimeUnit.SECONDS).build()
+        Lang.provider = { langEn.value }
+        langEn.value = Locale.getDefault().language != "ko"      // 첫 실행 기본 이름 등에 쓰이므로 저장소보다 먼저
         store = Store(filesDir.resolve("data"))
         engine = SyncEngine(store, listOf(NtfyRelay(http), NostrRelay(http)))
         elevation = ElevationClient(http)
         tiles = TileStore(cacheDir)
-        createChannels()
+        applyLanguage()
         recoverJournal()
         try { scheduleBackground() } catch (e: Exception) { /* WorkManager 미초기화(테스트) */ }
     }
 
-    fun initForTest(s: Store, e: SyncEngine, el: ElevationClient, t: TileStore = tiles) { store = s; engine = e; elevation = el; tiles = t }
+    fun initForTest(s: Store, e: SyncEngine, el: ElevationClient, t: TileStore = tiles) { store = s; engine = e; elevation = el; tiles = t; applyLanguage() }
+
+    /** 설정의 언어(없으면 휴대폰 언어)를 적용한다. 한국어 휴대폰은 한국어, 그 외는 영어. */
+    fun applyLanguage() {
+        langEn.value = when (store.settings.value.lang) {
+            "ko" -> false
+            "en" -> true
+            else -> Locale.getDefault().language != "ko"
+        }
+        createChannels()
+    }
 
     private fun createChannels() {
         val nm = getSystemService(NotificationManager::class.java) ?: return
-        nm.createNotificationChannel(NotificationChannel(CH_RUN, "달리기 기록 중", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
-        nm.createNotificationChannel(NotificationChannel(CH_SHARE, "그룹원의 새 기록", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_RUN, tr("달리기 기록 중", "Recording run"), NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+        nm.createNotificationChannel(NotificationChannel(CH_SHARE, tr("그룹원의 새 기록", "New runs from your groups"), NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     /** 기록 도중 앱이 죽었으면 남아 있는 저널에서 기록을 살린다. */
@@ -97,7 +120,7 @@ class App : Application() {
             if (t != null && store.meta(t.id) == null) {
                 store.saveTrack(t) { Series.meta(t, mine = true) }
                 RunController.finished.value = t.id
-                RunController.notice.value = "비정상 종료된 달리기 기록을 복구했어요."
+                RunController.notice.value = tr("비정상 종료된 달리기 기록을 복구했어요.", "Recovered a run that was interrupted unexpectedly.")
                 scope.launch { resolveElevation(t.id) }
             }
         } catch (e: Exception) { } finally { f.delete() }
@@ -169,7 +192,7 @@ class App : Application() {
         if (shown.isEmpty()) return
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        val title = if (shown.size == 1) "${shown[0].ownerName}님의 새 달리기 기록" else "새 달리기 기록 ${shown.size}개"
+        val title = if (shown.size == 1) tr("${shown[0].ownerName}님의 새 달리기 기록", "New run from ${shown[0].ownerName}") else tr("새 달리기 기록 ${shown.size}개", "${shown.size} new runs")
         val text = shown.take(4).joinToString(", ") { "${it.ownerName} ${Fmt.km(it.distanceM)}km" }
         val n = NotificationCompat.Builder(this, CH_SHARE)
             .setSmallIcon(R.drawable.ic_run).setContentTitle(title).setContentText(text)

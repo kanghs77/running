@@ -1,6 +1,7 @@
 package app.runmate
 
 import android.Manifest
+import app.runmate.core.tr
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.Service
@@ -73,11 +74,11 @@ class RunService : Service() {
                 if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0,
             )
         } catch (e: Exception) {
-            RunController.notice.value = "기록을 시작할 수 없어요. 위치 권한을 확인해 주세요."
+            RunController.notice.value = tr("기록을 시작할 수 없어요. 위치 권한을 확인해 주세요.", "Can't start recording. Please check the location permission.")
             stopSelf(); return
         }
         if (!fine) {
-            RunController.notice.value = "정확한 위치 권한이 필요해요."
+            RunController.notice.value = tr("정확한 위치 권한이 필요해요.", "Precise location permission is required.")
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE); stopSelf(); return
         }
         val app = application as App
@@ -100,7 +101,7 @@ class RunService : Service() {
                 .build()
             LocationManagerCompat.requestLocationUpdates(m, LocationManager.GPS_PROVIDER, req, ContextCompat.getMainExecutor(this), listener)
         } catch (e: Exception) {
-            RunController.notice.value = "GPS를 사용할 수 없어요."
+            RunController.notice.value = tr("GPS를 사용할 수 없어요.", "GPS is unavailable.")
         }
     }
 
@@ -146,10 +147,10 @@ class RunService : Service() {
                     RunController.finished.value = track.id
                     app.scope.launch { app.resolveElevation(track.id) }
                 } catch (e: Exception) {
-                    RunController.notice.value = "기록 저장에 실패했어요. 저장 공간을 확인해 주세요."
+                    RunController.notice.value = tr("기록 저장에 실패했어요. 저장 공간을 확인해 주세요.", "Couldn't save the run. Please check your storage space.")
                 }
             } else {
-                RunController.notice.value = "이동 거리가 너무 짧아 저장하지 않았어요."
+                RunController.notice.value = tr("이동 거리가 너무 짧아 저장하지 않았어요.", "The run was too short, so it wasn't saved.")
             }
             try { app.store.journalFile.delete() } catch (e: Exception) {}
         }
@@ -171,8 +172,8 @@ class RunService : Service() {
         val start = recorder?.startWallMs ?: System.currentTimeMillis()
         return NotificationCompat.Builder(this, App.CH_RUN)
             .setSmallIcon(R.drawable.ic_run)
-            .setContentTitle("달리기 기록 중")
-            .setContentText("${Fmt.km(distanceM)} km · 종료하려면 앱을 여세요")
+            .setContentTitle(tr("달리기 기록 중", "Recording run"))
+            .setContentText(tr("${Fmt.km(distanceM)} km · 종료하려면 앱을 여세요", "${Fmt.km(distanceM)} km · Open the app to stop"))
             .setOngoing(true).setOnlyAlertOnce(true)
             .setWhen(start).setUsesChronometer(true)
             .setContentIntent(App.mainIntent(this))

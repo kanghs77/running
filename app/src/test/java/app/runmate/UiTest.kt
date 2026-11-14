@@ -59,6 +59,8 @@ class UiTest {
             val app = ApplicationProvider.getApplicationContext<App>()
             WorkManagerTestInitHelper.initializeTestWorkManager(app, Configuration.Builder().build())
             val store = Store(tmpDir())
+            store.updateSettings { it.copy(lang = "ko") }       // 테스트 문구는 한국어 기준
+            Donate.url = ""
             // 죽은 주소: 테스트 중 실제 고도 API를 호출하지 않는다
             val dead = ElevationClient(OkHttpClient.Builder().connectTimeout(300, TimeUnit.MILLISECONDS).build(), "http://127.0.0.1:1/a", "http://127.0.0.1:1/b", 0)
             tileServer = okhttp3.mockwebserver.MockWebServer()
@@ -389,6 +391,75 @@ class UiTest {
         rule.onNodeWithTag("pager").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.4f)) }
         Thread.sleep(6000); rule.waitForIdle()
         shot("30_real_map")
+    }
+
+    @Test fun languageSwitchAndSettingsTab() {
+        seed()
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+        assertEquals(2, rule.onAllNodesWithText("설정").fetchSemanticsNodes().size)     // 제목 + 탭
+        shot("40_settings_ko")
+        rule.onNodeWithTag("lang_en").performClick(); rule.waitForIdle()
+        assertEquals("en", app.store.settings.value.lang); assertTrue(app.langEn.value)
+        rule.onNodeWithText("Language").assertIsDisplayed()
+        for (t in listOf("Run", "History", "Analyze", "Rank", "Groups")) rule.onNodeWithText(t).assertIsDisplayed()
+        shot("41_settings_en")
+        rule.onNodeWithTag("tab0").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("START").assertIsDisplayed()
+        shot("42_home_en")
+        rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("Export all").assertIsDisplayed()
+        shot("43_history_en")
+        rule.onAllNodesWithText("Me").onFirst().performClick(); rule.waitForIdle()
+        rule.waitUntil(5000) { rule.onAllNodesWithText("Pace").fetchSemanticsNodes().isNotEmpty() }
+        shot("44_detail_en")
+        rule.onNodeWithTag("tab2").performClick(); rule.waitForIdle(); shot("45_analyze_en")
+        rule.onNodeWithText("Trends").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("Weekly").assertIsDisplayed()
+        rule.onNodeWithTag("tab3").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("This month").assertIsDisplayed(); shot("46_rank_en")
+        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("Create group").assertIsDisplayed(); shot("47_groups_en")
+        // 알림 문구도 영어
+        RunController.uiVisible.value = false
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.notifyNewTracks(listOf(app.store.metas.value.first { !it.mine }))
+        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        assertTrue(shadowOf(shadowOf(nm).allNotifications[0]).contentTitle.toString().startsWith("New run from"))
+        assertEquals("Recording run", nm.getNotificationChannel(App.CH_RUN).name.toString())
+        RunController.uiVisible.value = true
+        // '휴대폰 설정 따름': 휴대폰 언어에 맞춘다
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+        val old = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.KOREA)
+            rule.onNodeWithTag("lang_").performClick(); rule.waitForIdle()
+            assertFalse(app.langEn.value); rule.onNodeWithText("언어").assertIsDisplayed()
+            java.util.Locale.setDefault(java.util.Locale.JAPAN); app.applyLanguage(); rule.waitForIdle()
+            assertTrue(app.langEn.value); rule.onNodeWithText("Language").assertIsDisplayed()
+        } finally { java.util.Locale.setDefault(old) }
+        // 재시작해도 선택한 언어 유지
+        rule.onNodeWithTag("lang_ko").performClick(); rule.waitForIdle()
+        assertEquals("ko", app.store.settings.value.lang)
+        rule.onNodeWithText("달리기").assertIsDisplayed()
+    }
+
+    @Test fun coffeeFooterOpensPaymentLinkOnlyWhenConfigured() {
+        assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())   // 링크가 없으면 숨김
+        Donate.url = "https://example.com/coffee"
+        rule.waitForIdle()
+        for (i in 0..5) {
+            rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle()
+            rule.onNodeWithTag("coffee").assertIsDisplayed()
+        }
+        shot("48_coffee_footer")
+        rule.onNodeWithTag("coffee").performClick(); rule.waitForIdle()
+        val i = shadowOf(app as Application).nextStartedActivity
+        assertEquals(Intent.ACTION_VIEW, i.action); assertEquals("https://example.com/coffee", i.dataString)
+        // 달리는 중에는 숨김
+        RunController.state.value = RunSnapshot(running = true, startElapsedMs = SystemClock.elapsedRealtime())
+        rule.onNodeWithTag("tab0").performClick(); rule.waitForIdle()
+        assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())
+        RunController.state.value = RunSnapshot(); Donate.url = ""
     }
 
     @Test fun mutedNotificationsStillMarkUnread() {

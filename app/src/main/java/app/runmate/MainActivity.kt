@@ -1,6 +1,7 @@
 package app.runmate
 
 import android.graphics.Color as AColor
+import app.runmate.core.tr
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -45,12 +46,17 @@ import app.runmate.ui.HomeScreen
 import app.runmate.ui.RankScreen
 import app.runmate.ui.RunMateTheme
 import app.runmate.ui.SendDialog
+import app.runmate.ui.SettingsScreen
+import app.runmate.ui.CoffeeFooter
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import app.runmate.ui.TrackDetailScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(SystemBarStyle.dark(AColor.TRANSPARENT), SystemBarStyle.dark(AColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
+        App.instance.applyLanguage()      // 휴대폰 언어가 바뀌어 화면이 다시 만들어진 경우 반영
         setContent { RunMateTheme { AppRoot() } }
         // 앱을 보고 있는 동안에는 1분마다 가볍게 새 기록을 확인한다(달리는 중 제외).
         lifecycleScope.launch {
@@ -95,7 +101,7 @@ fun AppRoot() {
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
             NavigationBar {
-                val tabs = listOf("🏃" to "달리기", "📋" to "기록", "📈" to "분석", "🏆" to "순위", "👥" to "그룹")
+                val tabs = listOf("🏃" to tr("달리기", "Run"), "📋" to tr("기록", "History"), "📈" to tr("분석", "Analyze"), "🏆" to tr("순위", "Rank"), "👥" to tr("그룹", "Groups"), "⚙️" to tr("설정", "Settings"))
                 tabs.forEachIndexed { i, (icon, label) ->
                     NavigationBarItem(
                         selected = tab == i && detail == null,
@@ -111,7 +117,9 @@ fun AppRoot() {
             }
         },
     ) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad)) {
+        val running by RunController.state.collectAsStateWithLifecycle()
+        Column(Modifier.fillMaxSize().padding(pad)) {
+          Box(Modifier.weight(1f).fillMaxWidth()) {
             val d = detail
             if (d != null) {
                 TrackDetailScreen(d, onBack = { detail = null }, onCompare = {
@@ -123,8 +131,12 @@ fun AppRoot() {
                 1 -> HistoryScreen(onOpen = { detail = it })
                 2 -> AnalyzeScreen(compare)
                 3 -> RankScreen()
-                else -> GroupsScreen()
+                4 -> GroupsScreen()
+                else -> SettingsScreen()
             }
+          }
+          // 달리는 중에는 잘못 누르지 않도록 숨긴다
+          if (!running.running) CoffeeFooter()
         }
     }
     finished?.let { id -> SendDialog(id) { RunController.finished.value = null } }

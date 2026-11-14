@@ -45,7 +45,7 @@ object Export {
     }
 
     fun summaryCsv(metas: List<TrackMeta>, zone: ZoneId = ZoneId.systemDefault()): String {
-        val sb = StringBuilder("﻿날짜,이름,내 기록,거리(km),시간,평균 페이스(분/km),상승(m),파일\n")
+        val sb = StringBuilder("\uFEFF" + tr("날짜,이름,내 기록,거리(km),시간,평균 페이스(분/km),상승(m),파일", "Date,Name,Mine,Distance(km),Time,Avg pace(min/km),Ascent(m),File") + "\n")
         for (m in metas.sortedBy { it.startMs }) {
             sb.append(stamp(m.startMs, zone)).append(',').append(csvCell(m.ownerName)).append(',').append(if (m.mine) "Y" else "N").append(',')
                 .append(f(m.distanceM / 1000, 2)).append(',').append(Fmt.duration(m.durationS)).append(',')

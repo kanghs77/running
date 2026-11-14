@@ -823,3 +823,20 @@ class MapMathTest {
         c.reset(); assertFalse(c.zoomed)
     }
 }
+
+class LangTest {
+    @Test fun labelsFollowLanguage() {
+        try {
+            assertEquals("페이스", Metric.PACE.label); assertEquals("분/km", Metric.PACE.unit); assertEquals("주별", Bucket.WEEK.label)
+            Lang.provider = { true }
+            assertEquals("Pace", Metric.PACE.label); assertEquals("min/km", Metric.PACE.unit); assertEquals("Weekly", Bucket.WEEK.label)
+            assertEquals("Runs", RankBy.RUNS.label); assertEquals("min", XAxis.TIME.unit); assertEquals("runs", TrendMetric.RUNS.unit)
+            assertTrue(Export.summaryCsv(emptyList()).contains("Date,Name"))
+            assertEquals("b", tr("a", "b"))
+            // 모든 항목에 두 언어 문구가 있다
+            for (m in Metric.values()) assertTrue(m.label.isNotBlank() && m.unit.isNotBlank())
+            for (m in TrendMetric.values()) assertTrue(m.label.isNotBlank() && m.unit.isNotBlank())
+        } finally { Lang.provider = { false } }
+        assertTrue(Export.summaryCsv(emptyList()).contains("날짜,이름"))
+    }
+}

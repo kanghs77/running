@@ -34,7 +34,7 @@ class Store(private val dir: File) {
     init {
         dir.mkdirs(); trackDir.mkdirs()
         var id = read("identity.json", Identity.serializer())
-        if (id == null || id.id.isBlank()) id = Identity(Crypto.randomHex(16), "러너" + (1000 + (Math.random() * 9000).toInt()))
+        if (id == null || id.id.isBlank()) id = Identity(Crypto.randomHex(16), tr("러너", "Runner") + (1000 + (Math.random() * 9000).toInt()))
         if (id.sk.length != 64 || !runCatching { Secp256k1.validSecret(Crypto.unhex(id.sk)) }.getOrDefault(false)) {
             id = id.copy(sk = Crypto.hex(Secp256k1.newSecret()))
             write("identity.json", Identity.serializer(), id)

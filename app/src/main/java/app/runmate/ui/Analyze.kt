@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.background
+import app.runmate.core.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,8 +66,8 @@ const val MAX_COMPARE = 8
 fun AnalyzeScreen(selected: SnapshotStateList<String>) {
     var mode by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-        Text("분석", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-        Chips(listOf(0 to "트랙 비교", 1 to "기간 추세"), mode) { mode = it }
+        Text(tr("분석", "Analyze"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+        Chips(listOf(0 to tr("트랙 비교", "Compare runs"), 1 to tr("기간 추세", "Trends")), mode) { mode = it }
         if (mode == 0) CompareView(selected) else TrendView()
         Spacer(Modifier.height(20.dp))
     }
@@ -86,50 +87,50 @@ private fun CompareView(selected: SnapshotStateList<String>) {
         value = withContext(Dispatchers.IO) { ids.mapNotNull { id -> app.store.loadTrack(id)?.let { id to it } }.toMap() }
     }
 
-    SectionTitle("비교할 기록 (최대 ${MAX_COMPARE}개)")
-    if (ids.isEmpty()) Text("내 기록이나 그룹원 기록을 골라 겹쳐서 비교해 보세요.", color = Dim)
+    SectionTitle(tr("비교할 기록 (최대 ${MAX_COMPARE}개)", "Runs to compare (up to ${MAX_COMPARE})"))
+    if (ids.isEmpty()) Text(tr("내 기록이나 그룹원 기록을 골라 겹쳐서 비교해 보세요.", "Pick your runs or your group members' runs to overlay and compare."), color = Dim)
     ids.forEachIndexed { i, id ->
         val m = metas.first { it.id == id }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Box(Modifier.size(12.dp).background(Palette[i % Palette.size], CircleShape))
             Spacer(Modifier.width(8.dp))
             Text(
-                "${if (m.mine) "나" else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}",
+                tr("${if (m.mine) "나" else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}", "${if (m.mine) "Me" else m.ownerName} · ${fmtDay(m.startMs)} · ${Fmt.km(m.distanceM)}km · ${Fmt.pace(m.avgSpeed)}"),
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
             )
-            TextButton(onClick = { selected.remove(id) }) { Text("빼기") }
+            TextButton(onClick = { selected.remove(id) }) { Text(tr("빼기", "Remove")) }
         }
     }
-    Button(onClick = { picker = true }, modifier = Modifier.testTag("pick")) { Text("기록 선택") }
+    Button(onClick = { picker = true }, modifier = Modifier.testTag("pick")) { Text(tr("기록 선택", "Select runs")) }
 
     if (ids.isNotEmpty()) {
         val settings by app.store.settings.collectAsStateWithLifecycle()
         val metric = runCatching { Metric.valueOf(view) }.getOrDefault(Metric.PACE)
-        SectionTitle("세로축")
+        SectionTitle(tr("세로축", "Y axis"))
         Chips(Metric.values().map { it.name to it.label }, metric.name) { view = it }
-        SectionTitle("가로축")
+        SectionTitle(tr("가로축", "X axis"))
         Chips(XAxis.values().map { it to it.label }, xAxis) { xAxis = it; chart.reset(); chart.cursorX = null }
         val series = ids.mapIndexedNotNull { i, id ->
             val t = tracks[id] ?: return@mapIndexedNotNull null
             if (!Series.has(t, metric)) return@mapIndexedNotNull null
             val m = metas.first { it.id == id }
-            ChartSeries("${if (m.mine) "나" else m.ownerName} ${fmtDay(m.startMs)}", Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
+            ChartSeries(tr("${if (m.mine) "나" else m.ownerName} ${fmtDay(m.startMs)}", "${if (m.mine) "Me" else m.ownerName} ${fmtDay(m.startMs)}"), Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
         }
         Spacer(Modifier.height(8.dp))
-        if (series.isEmpty()) Text(if (tracks.isEmpty()) "불러오는 중…" else "선택한 기록에 이 데이터가 없어요. (API 고도는 인터넷 연결 후 받아집니다)", color = Dim)
+        if (series.isEmpty()) Text(if (tracks.isEmpty()) tr("불러오는 중…", "Loading…") else tr("선택한 기록에 이 데이터가 없어요. (API 고도는 인터넷 연결 후 받아집니다)", "The selected runs don't have this data. (API elevation is fetched once you're online)"), color = Dim)
         else LineChart(
             series, xAxis.unit, metric.unit, height = 260.dp, state = chart,
             invertY = metric == Metric.PACE, yFormat = if (metric == Metric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) },
         )
-        if (series.size < ids.size && series.isNotEmpty()) Text("일부 기록에는 이 데이터가 없어 제외됐어요.", color = Dim, style = MaterialTheme.typography.labelSmall)
-        if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text("전체 구간 보기") }
+        if (series.size < ids.size && series.isNotEmpty()) Text(tr("일부 기록에는 이 데이터가 없어 제외됐어요.", "Some runs were left out because they don't have this data."), color = Dim, style = MaterialTheme.typography.labelSmall)
+        if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text(tr("전체 구간 보기", "Show full range")) }
 
         // 그래프에서 고른 지점이 경로의 어디인지 표시
         val axisPts = remember(tracks, xAxis) { tracks.mapValues { (_, t) -> Series.of(t, xAxis, Metric.DIST, 0.0) } }
         fun markIndex(id: String): Int? = chart.cursorX?.let { xv -> axisPts[id]?.let { p -> if (xv <= p.xs.last() + 1e-9) nearest(p, xv) else null } }
         val anyGeo = ids.any { tracks[it]?.oLat != null }
-        SectionTitle("위치")
-        if (anyGeo) Chips(listOf(true to "지도", false to "격자"), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
+        SectionTitle(tr("위치", "Location"))
+        if (anyGeo) Chips(listOf(true to tr("지도", "Map"), false to tr("격자", "Grid")), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
         Surface(Modifier.fillMaxWidth().height(300.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
             if (anyGeo && settings.mapMode) {
                 val geos = remember(tracks, ids.joinToString(",")) { ids.mapIndexedNotNull { i, id -> tracks[id]?.let { geoTrack(it, Palette[i % Palette.size]) } } }
@@ -142,19 +143,19 @@ private fun CompareView(selected: SnapshotStateList<String>) {
             }
         }
         Text(
-            if (anyGeo && settings.mapMode) "지도에는 내 기록만 표시됩니다. 그룹원 기록은 실제 위치가 공유되지 않아요."
-            else "각 기록의 시작점을 원점(0,0)에 맞춰 겹쳐 그립니다.",
+            if (anyGeo && settings.mapMode) tr("지도에는 내 기록만 표시됩니다. 그룹원 기록은 실제 위치가 공유되지 않아요.", "Only your own runs appear on the map. Group members' real locations are not shared.")
+            else tr("각 기록의 시작점을 원점(0,0)에 맞춰 겹쳐 그립니다.", "Runs are overlaid with each start point at the origin (0,0)."),
             color = Dim, style = MaterialTheme.typography.labelSmall,
         )
-        SectionTitle("부드럽게: ${smooth.toInt()}초 평균")
+        SectionTitle(tr("부드럽게: ${smooth.toInt()}초 평균", "Smoothing: ${smooth.toInt()} s average"))
         Slider(value = smooth, onValueChange = { smooth = it }, valueRange = 0f..180f)
     }
 
     if (picker) AlertDialog(
         onDismissRequest = { picker = false },
-        title = { Text("비교할 기록 선택") },
+        title = { Text(tr("비교할 기록 선택", "Select runs to compare")) },
         text = {
-            if (metas.isEmpty()) Text("아직 기록이 없어요.")
+            if (metas.isEmpty()) Text(tr("아직 기록이 없어요.", "No runs yet."))
             else LazyColumn(Modifier.heightIn(max = 420.dp)) {
                 items(metas, key = { it.id }) { m ->
                     val on = m.id in selected
@@ -163,14 +164,14 @@ private fun CompareView(selected: SnapshotStateList<String>) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(enabled = can) { toggle() }) {
                         Checkbox(checked = on, enabled = can, onCheckedChange = { toggle() })
                         Column {
-                            Text("${if (m.mine) "나" else m.ownerName} · ${fmtDate(m.startMs)}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(tr("${if (m.mine) "나" else m.ownerName} · ${fmtDate(m.startMs)}", "${if (m.mine) "Me" else m.ownerName} · ${fmtDate(m.startMs)}"), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${Fmt.km(m.distanceM)} km · ${Fmt.duration(m.durationS)} · ${Fmt.pace(m.avgSpeed)}/km", color = Dim, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { picker = false }) { Text("완료") } },
+        confirmButton = { TextButton(onClick = { picker = false }) { Text(tr("완료", "Done")) } },
     )
 }
 
@@ -192,25 +193,25 @@ private fun TrendView() {
     val visible = colored.filter { it.first !in hidden }
     val pts = Trend.compute(inRange.filter { it.ownerId !in hidden }, bucket, metric)
 
-    SectionTitle("항목")
+    SectionTitle(tr("항목", "Metric"))
     Chips(TrendMetric.values().map { it to it.label }, metric) { metric = it }
-    SectionTitle("묶음")
+    SectionTitle(tr("묶음", "Group by"))
     Chips(Bucket.values().map { it to it.label }, bucket) { bucket = it }
-    SectionTitle("기간")
-    Chips(listOf(28 to "4주", 90 to "3개월", 365 to "1년", 0 to "전체"), days) { days = it }
+    SectionTitle(tr("기간", "Period"))
+    Chips(listOf(28 to tr("4주", "4 weeks"), 90 to tr("3개월", "3 months"), 365 to tr("1년", "1 year"), 0 to tr("전체", "All")), days) { days = it }
     Spacer(Modifier.height(10.dp))
-    if (pts.isEmpty()) Text("이 기간에는 기록이 없어요.", color = Dim)
+    if (pts.isEmpty()) Text(tr("이 기간에는 기록이 없어요.", "No runs in this period."), color = Dim)
     else {
         BarChart(pts, visible, metric.unit, height = 260.dp, yFormat = if (metric == TrendMetric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) })
-        if (pts.size > 30) Text("최근 30개 묶음만 표시합니다.", color = Dim, style = MaterialTheme.typography.labelSmall)
+        if (pts.size > 30) Text(tr("최근 30개 묶음만 표시합니다.", "Only the latest 30 groups are shown."), color = Dim, style = MaterialTheme.typography.labelSmall)
     }
-    SectionTitle("사람 (눌러서 숨기기/보이기)")
+    SectionTitle(tr("사람 (눌러서 숨기기/보이기)", "People (tap to hide/show)"))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Column {
             for ((id, color) in colored) FilterChip(
                 selected = id !in hidden,
                 onClick = { hidden = if (id in hidden) hidden - id else hidden + id },
-                label = { Text(if (id == me.id) "나 (${me.name})" else names[id] ?: "?") },
+                label = { Text(if (id == me.id) tr("나 (${me.name})", "Me (${me.name})") else names[id] ?: "?") },
                 leadingIcon = { Box(Modifier.size(10.dp).background(color, CircleShape)) },
             )
         }

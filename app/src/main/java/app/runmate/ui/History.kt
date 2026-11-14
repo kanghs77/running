@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.clickable
+import app.runmate.core.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,22 +74,22 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
         if (uri != null) app.scope.launch(Dispatchers.IO) {
             RunController.notice.value = try {
                 val n = ctx.contentResolver.openOutputStream(uri)!!.use { out -> Export.zip(out, app.store.metas.value) { app.store.loadTrack(it) } }
-                "기록 ${n}개를 내보냈어요."
-            } catch (e: Exception) { "내보내기에 실패했어요." }
+                tr("기록 ${n}개를 내보냈어요.", "Exported ${n} runs.")
+            } catch (e: Exception) { tr("내보내기에 실패했어요.", "Export failed.") }
         }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("기록", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            if (unread > 0) TextButton(onClick = { app.store.updateMetas { if (it.unread) it.copy(unread = false) else it } }) { Text("모두 읽음") }
+            Text(tr("기록", "History"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (unread > 0) TextButton(onClick = { app.store.updateMetas { if (it.unread) it.copy(unread = false) else it } }) { Text(tr("모두 읽음", "Mark all read")) }
             if (metas.isNotEmpty()) TextButton(modifier = Modifier.testTag("exportAll"), onClick = {
-                try { zipLauncher.launch("runmate_" + fmtDay(System.currentTimeMillis()).replace('.', '-') + ".zip") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." }
-            }) { Text("전체 내보내기") }
+                try { zipLauncher.launch("runmate_" + fmtDay(System.currentTimeMillis()).replace('.', '-') + ".zip") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") }
+            }) { Text(tr("전체 내보내기", "Export all")) }
         }
-        Chips(listOf(0 to "전체", 1 to "내 기록", 2 to "그룹원 기록"), filter) { filter = it }
+        Chips(listOf(0 to tr("전체", "All"), 1 to tr("내 기록", "My runs"), 2 to tr("그룹원 기록", "Members' runs")), filter) { filter = it }
         if (shown.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(if (filter == 2) "아직 받은 기록이 없어요" else "아직 기록이 없어요.\n달리기 탭에서 시작을 눌러 보세요!", color = Dim)
+                Text(if (filter == 2) tr("아직 받은 기록이 없어요", "No runs received yet") else tr("아직 기록이 없어요.\n달리기 탭에서 시작을 눌러 보세요!", "No runs yet.\nTap Start on the Run tab!"), color = Dim)
             }
         } else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
             items(shown, key = { it.id }) { m -> TrackRow(m) { onOpen(m.id) } }
@@ -103,7 +104,7 @@ fun TrackRow(m: TrackMeta, trailing: @Composable () -> Unit = {}, onClick: () ->
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (m.mine) "나" else m.ownerName, fontWeight = FontWeight.Bold, color = if (m.mine) Green else Color(0xFF4FC3F7), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(if (m.mine) tr("나", "Me") else m.ownerName, fontWeight = FontWeight.Bold, color = if (m.mine) Green else Color(0xFF4FC3F7), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.width(8.dp))
                     Text(fmtDate(m.startMs), color = Dim, style = MaterialTheme.typography.bodySmall)
                     if (m.unread) { Spacer(Modifier.width(8.dp)); Badge { Text("NEW") } }
@@ -111,9 +112,9 @@ fun TrackRow(m: TrackMeta, trailing: @Composable () -> Unit = {}, onClick: () ->
                 Text("${Fmt.km(m.distanceM)} km · ${Fmt.duration(m.durationS)} · ${Fmt.pace(m.avgSpeed)}/km", style = MaterialTheme.typography.titleMedium)
                 if (m.mine) {
                     val s = when {
-                        m.pending.isNotEmpty() -> "전송 대기 중"
-                        m.groupIds.isNotEmpty() -> "그룹 ${m.groupIds.size}곳에 보냄"
-                        else -> "보내지 않음"
+                        m.pending.isNotEmpty() -> tr("전송 대기 중", "Waiting to send")
+                        m.groupIds.isNotEmpty() -> tr("그룹 ${m.groupIds.size}곳에 보냄", "Sent to ${m.groupIds.size} group(s)")
+                        else -> tr("보내지 않음", "Not sent")
                     }
                     Text(s, color = if (m.pending.isNotEmpty()) Color(0xFFFFB74D) else Dim, style = MaterialTheme.typography.labelSmall)
                 }
@@ -141,8 +142,8 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         if (uri != null) app.scope.launch(Dispatchers.IO) {
             RunController.notice.value = try {
                 ctx.contentResolver.openOutputStream(uri)!!.use { it.write(text()!!.toByteArray(Charsets.UTF_8)) }
-                "파일로 내보냈어요."
-            } catch (e: Exception) { "내보내기에 실패했어요." }
+                tr("파일로 내보냈어요.", "Exported to file.")
+            } catch (e: Exception) { tr("내보내기에 실패했어요.", "Export failed.") }
         }
     }
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri -> save(uri) { app.store.loadTrack(id)?.let { Export.csv(it) } } }
@@ -150,33 +151,33 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("‹ 뒤로") }
-            Text(if (meta.mine) "내 기록" else "${meta.ownerName}님의 기록", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            TextButton(onClick = onBack) { Text(tr("‹ 뒤로", "‹ Back")) }
+            Text(if (meta.mine) tr("내 기록", "My run") else tr("${meta.ownerName}님의 기록", "${meta.ownerName}'s run"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(fmtDate(meta.startMs), color = Dim)
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Stat("거리 km", Fmt.km(meta.distanceM)); Stat("시간", Fmt.duration(meta.durationS))
-            Stat("평균 페이스", Fmt.pace(meta.avgSpeed)); Stat("상승 m", String.format("%.0f", meta.ascentM))
+            Stat(tr("거리 km", "Distance km"), Fmt.km(meta.distanceM)); Stat(tr("시간", "Time"), Fmt.duration(meta.durationS))
+            Stat(tr("평균 페이스", "Avg pace"), Fmt.pace(meta.avgSpeed)); Stat(tr("상승 m", "Ascent m"), String.format("%.0f", meta.ascentM))
         }
         val t = track
-        if (t == null) Text("불러오는 중…", color = Dim)
+        if (t == null) Text(tr("불러오는 중…", "Loading…"), color = Dim)
         else {
             val hasApi = t.ele != null
             val chart = remember(id) { ChartState() }
             val settings by app.store.settings.collectAsStateWithLifecycle()
             val canMap = t.oLat != null
             val distPts = remember(t) { Series.cumDist(t).let { c -> DoubleArray(t.n) { c[it] / 1000.0 } }.let { Pts(it, it) } }
-            val pages = remember(t) {
+            val pages = remember(t, app.langEn.value) {
                 buildList {
-                    if (hasApi) add(ChartPage("높이(API)", "m", Palette[1], Series.of(t, XAxis.DISTANCE, Metric.ELE_API, 20.0)))
-                    add(ChartPage("높이(GPS)", "m", Palette[2], Series.of(t, XAxis.DISTANCE, Metric.ELE_GPS, 20.0)))
-                    add(ChartPage("페이스", "분/km", Green, Series.of(t, XAxis.DISTANCE, Metric.PACE, 30.0), invert = true, fmt = { Fmt.paceMin(it) }))
-                    add(ChartPage("속도", "km/h", Palette[3], Series.of(t, XAxis.DISTANCE, Metric.SPEED, 30.0)))
+                    if (hasApi) add(ChartPage(tr("높이(API)", "Elev (API)"), "m", Palette[1], Series.of(t, XAxis.DISTANCE, Metric.ELE_API, 20.0)))
+                    add(ChartPage(tr("높이(GPS)", "Elev (GPS)"), "m", Palette[2], Series.of(t, XAxis.DISTANCE, Metric.ELE_GPS, 20.0)))
+                    add(ChartPage(tr("페이스", "Pace"), tr("분/km", "min/km"), Green, Series.of(t, XAxis.DISTANCE, Metric.PACE, 30.0), invert = true, fmt = { Fmt.paceMin(it) }))
+                    add(ChartPage(tr("속도", "Speed"), "km/h", Palette[3], Series.of(t, XAxis.DISTANCE, Metric.SPEED, 30.0)))
                 }
             }
             val markIdx = chart.cursorX?.let { nearest(distPts, it) }
-            SectionTitle(if (canMap) "경로" else "경로 (시작점 기준 상대좌표)")
-            if (canMap) Chips(listOf(true to "지도", false to "격자"), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
+            SectionTitle(if (canMap) tr("경로", "Route") else tr("경로 (시작점 기준 상대좌표)", "Route (relative to start point)"))
+            if (canMap) Chips(listOf(true to tr("지도", "Map"), false to tr("격자", "Grid")), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
             Surface(Modifier.fillMaxWidth().height(300.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
                 if (canMap && settings.mapMode) {
                     val geo = remember(t) { geoTrack(t, Green) }
@@ -186,49 +187,49 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
                     TrackPlot(listOf(plot), markers = listOfNotNull(markIdx?.let { PlotMarker(Color(0xFFFF5252), t.x[it] / 10f, t.y[it] / 10f) }))
                 }
             }
-            if (!canMap) Text("받은 기록에는 실제 위치가 없어(상대좌표만 공유) 지도에 올릴 수 없어요.", color = Dim, style = MaterialTheme.typography.labelSmall)
+            if (!canMap) Text(tr("받은 기록에는 실제 위치가 없어(상대좌표만 공유) 지도에 올릴 수 없어요.", "Received runs have no real location (only relative coordinates are shared), so they can't be shown on the map."), color = Dim, style = MaterialTheme.typography.labelSmall)
 
             val pager = rememberPagerState { pages.size }
-            SectionTitle("그래프 (좌우로 넘기기)")
+            SectionTitle(tr("그래프 (좌우로 넘기기)", "Charts (swipe left/right)"))
             Chips(pages.indices.map { it to pages[it].label }, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
-            if (hasApi) Text("API 출처: ${t.eleSrc}", color = Dim, style = MaterialTheme.typography.labelSmall)
+            if (hasApi) Text(tr("API 출처: ${t.eleSrc}", "API source: ${t.eleSrc}"), color = Dim, style = MaterialTheme.typography.labelSmall)
             HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().testTag("pager"), verticalAlignment = Alignment.Top) { p ->
                 val pg = pages[p]
                 LineChart(listOf(ChartSeries(pg.label, pg.color, pg.pts)), "km", pg.unit, height = 200.dp, state = chart,
                     invertY = pg.invert, yFormat = pg.fmt, dragCursor = false)
             }
-            if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text("전체 구간 보기") }
+            if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text(tr("전체 구간 보기", "Show full range")) }
             if (meta.mine && !hasApi && t.oLat != null) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(enabled = !eleBusy, onClick = {
                     eleBusy = true; eleMsg = null
                     scope.launch {
                         val ok = app.resolveElevation(id)
-                        eleBusy = false; eleMsg = if (ok) null else "고도 API에 연결하지 못했어요. 잠시 후 다시 시도해 주세요."
+                        eleBusy = false; eleMsg = if (ok) null else tr("고도 API에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't reach the elevation API. Please try again later.")
                     }
-                }) { Text(if (eleBusy) "고도 받는 중…" else "고도 API에서 높이 받기") }
+                }) { Text(if (eleBusy) tr("고도 받는 중…", "Fetching elevation…") else tr("고도 API에서 높이 받기", "Get elevation from API")) }
                 eleMsg?.let { Text(it, color = Color(0xFFFFB74D), style = MaterialTheme.typography.bodySmall) }
             }
         }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onCompare) { Text("분석에 추가") }
-            if (meta.mine && groups.isNotEmpty()) Button(onClick = { shareOpen = true }) { Text("그룹에 보내기") }
-            TextButton(onClick = { confirmDelete = true }) { Text("삭제", color = MaterialTheme.colorScheme.error) }
+            OutlinedButton(onClick = onCompare) { Text(tr("분석에 추가", "Add to Analyze")) }
+            if (meta.mine && groups.isNotEmpty()) Button(onClick = { shareOpen = true }) { Text(tr("그룹에 보내기", "Send to groups")) }
+            TextButton(onClick = { confirmDelete = true }) { Text(tr("삭제", "Delete"), color = MaterialTheme.colorScheme.error) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { try { csvLauncher.launch(Export.fileBase(meta) + ".csv") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." } }) { Text("CSV로 내보내기") }
-            if (meta.mine && track?.oLat != null) OutlinedButton(onClick = { try { gpxLauncher.launch(Export.fileBase(meta) + ".gpx") } catch (e: Exception) { RunController.notice.value = "파일 저장 화면을 열 수 없어요." } }) { Text("GPX로 내보내기") }
+            OutlinedButton(onClick = { try { csvLauncher.launch(Export.fileBase(meta) + ".csv") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("CSV로 내보내기", "Export CSV")) }
+            if (meta.mine && track?.oLat != null) OutlinedButton(onClick = { try { gpxLauncher.launch(Export.fileBase(meta) + ".gpx") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("GPX로 내보내기", "Export GPX")) }
         }
         Spacer(Modifier.height(20.dp))
     }
 
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
-        title = { Text("기록 삭제") },
-        text = { Text("이 기록을 내 휴대폰에서 삭제할까요? 이미 그룹원에게 보낸 기록은 그룹원 휴대폰에 남습니다.") },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; app.store.deleteTrack(id); onBack() }, modifier = Modifier.testTag("confirmDelete")) { Text("삭제") } },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("취소") } },
+        title = { Text(tr("기록 삭제", "Delete run")) },
+        text = { Text(tr("이 기록을 내 휴대폰에서 삭제할까요? 이미 그룹원에게 보낸 기록은 그룹원 휴대폰에 남습니다.", "Delete this run from your phone? Runs already sent stay on your group members' phones.")) },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; app.store.deleteTrack(id); onBack() }, modifier = Modifier.testTag("confirmDelete")) { Text(tr("삭제", "Delete")) } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("취소", "Cancel")) } },
     )
     if (shareOpen) {
         val checked = remember { mutableStateMapOf<String, Boolean>() }
@@ -236,16 +237,16 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         val candidates = groups.filter { it.id !in already }
         AlertDialog(
             onDismissRequest = { shareOpen = false },
-            title = { Text("그룹에 보내기") },
+            title = { Text(tr("그룹에 보내기", "Send to groups")) },
             text = {
-                if (candidates.isEmpty()) Text("이미 모든 그룹에 보낸 기록이에요.")
+                if (candidates.isEmpty()) Text(tr("이미 모든 그룹에 보낸 기록이에요.", "This run has already been sent to all groups."))
                 else GroupChecklist(candidates, candidates.associate { it.id to (checked[it.id] ?: true) }) { g, v -> checked[g] = v }
             },
             confirmButton = {
                 val sel = candidates.map { it.id }.filter { checked[it] ?: true }
-                TextButton(enabled = sel.isNotEmpty(), onClick = { app.share(id, sel); shareOpen = false }) { Text("보내기") }
+                TextButton(enabled = sel.isNotEmpty(), onClick = { app.share(id, sel); shareOpen = false }) { Text(tr("보내기", "Send")) }
             },
-            dismissButton = { TextButton(onClick = { shareOpen = false }) { Text("취소") } },
+            dismissButton = { TextButton(onClick = { shareOpen = false }) { Text(tr("취소", "Cancel")) } },
         )
     }
 }

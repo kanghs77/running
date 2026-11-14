@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.background
+import app.runmate.core.tr
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -78,17 +79,17 @@ fun RankScreen() {
     val top = rows.maxOfOrNull { when (by) { RankBy.DISTANCE -> it.distanceM; RankBy.TIME -> it.durationS.toDouble(); RankBy.RUNS -> it.runs.toDouble() } } ?: 0.0
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-        Text("순위", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-        SectionTitle("기간")
-        Chips(listOf("week" to "이번 주", "month" to "이번 달", "30d" to "최근 30일", "year" to "올해", "all" to "전체", "custom" to "직접 선택"), period) {
+        Text(tr("순위", "Rank"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+        SectionTitle(tr("기간", "Period"))
+        Chips(listOf("week" to tr("이번 주", "This week"), "month" to tr("이번 달", "This month"), "30d" to tr("최근 30일", "Last 30 days"), "year" to tr("올해", "This year"), "all" to tr("전체", "All"), "custom" to tr("직접 선택", "Custom")), period) {
             if (it == "custom") pickerOpen = true else period = it
         }
         if (period == "custom") Text("${fmtDay(customFrom)} ~ ${fmtDay(customTo - 1)}", color = Dim, style = MaterialTheme.typography.bodySmall)
         if (groups.isNotEmpty()) {
-            SectionTitle("그룹")
-            Chips(listOf<Pair<String?, String>>(null to "전체") + groups.map { it.id to it.name }, gid) { groupId = it }
+            SectionTitle(tr("그룹", "Group"))
+            Chips(listOf<Pair<String?, String>>(null to tr("전체", "All")) + groups.map { it.id to it.name }, gid) { groupId = it }
         }
-        SectionTitle("기준")
+        SectionTitle(tr("기준", "Rank by"))
         Chips(RankBy.values().map { it to it.label }, by) { by = it }
         Spacer(Modifier.height(12.dp))
         rows.forEachIndexed { i, r ->
@@ -98,22 +99,22 @@ fun RankScreen() {
                 Column(Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(if (v > 0) when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> "${i + 1}" } else "-", modifier = Modifier.width(34.dp), style = MaterialTheme.typography.titleMedium)
-                        Text(if (isMe) "${r.name} (나)" else r.name, fontWeight = FontWeight.Bold, color = if (isMe) Green else Color.White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(if (isMe) tr("${r.name} (나)", "${r.name} (me)") else r.name, fontWeight = FontWeight.Bold, color = if (isMe) Green else Color.White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            when (by) { RankBy.DISTANCE -> "${Fmt.km(r.distanceM)} km"; RankBy.TIME -> Fmt.duration(r.durationS.toInt()); RankBy.RUNS -> "${r.runs}회" },
+                            when (by) { RankBy.DISTANCE -> "${Fmt.km(r.distanceM)} km"; RankBy.TIME -> Fmt.duration(r.durationS.toInt()); RankBy.RUNS -> tr("${r.runs}회", "${r.runs} runs") },
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                         )
                     }
                     Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(6.dp).background(Color(0x22FFFFFF), RoundedCornerShape(3.dp))) {
                         if (top > 0 && v > 0) Box(Modifier.fillMaxWidth((v / top).toFloat().coerceIn(0.01f, 1f)).height(6.dp).background(if (isMe) Green else Color(0xFF4FC3F7), RoundedCornerShape(3.dp)))
                     }
-                    Text("${r.runs}회 · ${Fmt.km(r.distanceM)} km · ${Fmt.duration(r.durationS.toInt())} · 상승 ${String.format("%.0f", r.ascentM)}m", color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                    Text(tr("${r.runs}회 · ${Fmt.km(r.distanceM)} km · ${Fmt.duration(r.durationS.toInt())} · 상승 ${String.format("%.0f", r.ascentM)}m", "${r.runs} runs · ${Fmt.km(r.distanceM)} km · ${Fmt.duration(r.durationS.toInt())} · ascent ${String.format("%.0f", r.ascentM)}m"), color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
         Text(
-            if (gid == null) "내 모든 기록과, 그룹원이 나에게 보낸 기록을 합산합니다."
-            else "이 그룹에 보낸 내 기록과, 이 그룹으로 받은 기록만 합산합니다.",
+            if (gid == null) tr("내 모든 기록과, 그룹원이 나에게 보낸 기록을 합산합니다.", "Totals include all your runs and the runs your group members sent you.")
+            else tr("이 그룹에 보낸 내 기록과, 이 그룹으로 받은 기록만 합산합니다.", "Totals include only the runs you sent to this group and the runs received through it."),
             color = Dim, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(vertical = 10.dp),
         )
     }
@@ -131,9 +132,9 @@ fun RankScreen() {
                     customFrom = s.atStartOfDay(zone).toInstant().toEpochMilli()
                     customTo = e.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
                     period = "custom"; pickerOpen = false
-                }) { Text("적용") }
+                }) { Text(tr("적용", "Apply")) }
             },
-            dismissButton = { TextButton(onClick = { pickerOpen = false }) { Text("취소") } },
-        ) { DateRangePicker(state = st, modifier = Modifier.height(480.dp), title = { Text("기간 선택", Modifier.padding(16.dp)) }) }
+            dismissButton = { TextButton(onClick = { pickerOpen = false }) { Text(tr("취소", "Cancel")) } },
+        ) { DateRangePicker(state = st, modifier = Modifier.height(480.dp), title = { Text(tr("기간 선택", "Select period"), Modifier.padding(16.dp)) }) }
     }
 }

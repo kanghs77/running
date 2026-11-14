@@ -9,7 +9,7 @@ val J = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = 
 data class Identity(val id: String, val name: String, /** 그룹장 서명·키 교환용 비밀키(hex). 휴대폰 밖으로 나가지 않는다. */ val sk: String = "")
 
 @Serializable
-data class Settings(val notifications: Boolean = true, val nameSet: Boolean = false, val askedNotif: Boolean = false, val mapMode: Boolean = true)
+data class Settings(val notifications: Boolean = true, val nameSet: Boolean = false, val askedNotif: Boolean = false, val mapMode: Boolean = true, /** ""=휴대폰 설정 따름, "ko", "en" */ val lang: String = "")
 
 @Serializable
 data class Member(val id: String, val name: String, val lastSeenMs: Long, val pub: String = "")

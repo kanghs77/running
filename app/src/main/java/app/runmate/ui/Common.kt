@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.horizontalScroll
+import app.runmate.core.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.runmate.App
 import app.runmate.core.Group
+import app.runmate.core.Lang
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,9 +47,10 @@ fun RunMateTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = 
 
 val app: App get() = App.instance
 
-private val dateFmt = DateTimeFormatter.ofPattern("M월 d일 (E) HH:mm", Locale.KOREAN)
+private val dateFmtKo = DateTimeFormatter.ofPattern("M월 d일 (E) HH:mm", Locale.KOREAN)
+private val dateFmtEn = DateTimeFormatter.ofPattern("MMM d (E) HH:mm", Locale.ENGLISH)
 private val dayFmt = DateTimeFormatter.ofPattern("yyyy.M.d", Locale.KOREAN)
-fun fmtDate(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(dateFmt)
+fun fmtDate(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(if (Lang.en) dateFmtEn else dateFmtKo)
 fun fmtDay(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(dayFmt)
 fun fmtClock(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))
 
@@ -74,7 +77,7 @@ fun GroupChecklist(groups: List<Group>, checked: Map<String, Boolean>, onToggle:
     Column {
         for (g in groups) Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked[g.id] ?: false, onCheckedChange = { onToggle(g.id, it) })
-            Text("${g.name} (${g.members.size + 1}명)", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tr("${g.name} (${g.members.size + 1}명)", "${g.name} (${g.members.size + 1})"), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

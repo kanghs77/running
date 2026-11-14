@@ -119,14 +119,20 @@ object ElevationProfile {
     }
 }
 
-enum class XAxis(val label: String, val unit: String) { DISTANCE("거리", "km"), TIME("시간", "분") }
+enum class XAxis(private val ko: String, private val enName: String, private val unitKo: String, private val unitEn: String) {
+    DISTANCE("거리", "Distance", "km", "km"), TIME("시간", "Time", "분", "min");
+    val label: String get() = tr(ko, enName)
+    val unit: String get() = tr(unitKo, unitEn)
+}
 
-enum class Metric(val label: String, val unit: String) {
-    PACE("페이스", "분/km"),
-    SPEED("속도", "km/h"),
-    ELE_API("상대높이(API)", "m"),
-    ELE_GPS("상대높이(GPS)", "m"),
-    DIST("누적거리", "km"),
+enum class Metric(private val ko: String, private val enName: String, private val unitKo: String, private val unitEn: String) {
+    PACE("페이스", "Pace", "분/km", "min/km"),
+    SPEED("속도", "Speed", "km/h", "km/h"),
+    ELE_API("상대높이(API)", "Rel. elev (API)", "m", "m"),
+    ELE_GPS("상대높이(GPS)", "Rel. elev (GPS)", "m", "m"),
+    DIST("누적거리", "Cum. distance", "km", "km");
+    val label: String get() = tr(ko, enName)
+    val unit: String get() = tr(unitKo, unitEn)
 }
 
 class Pts(val xs: DoubleArray, val ys: DoubleArray) { val n get() = xs.size }
@@ -211,9 +217,15 @@ object Series {
 
 data class RankRow(val ownerId: String, val name: String, val distanceM: Double, val durationS: Long, val runs: Int, val ascentM: Double)
 
-enum class RankBy(val label: String) { DISTANCE("거리"), TIME("시간"), RUNS("횟수") }
+enum class RankBy(private val ko: String, private val enName: String) {
+    DISTANCE("거리", "Distance"), TIME("시간", "Time"), RUNS("횟수", "Runs");
+    val label: String get() = tr(ko, enName)
+}
 
-enum class Bucket(val label: String) { RUN("달리기별"), DAY("일별"), WEEK("주별"), MONTH("월별") }
+enum class Bucket(private val ko: String, private val enName: String) {
+    RUN("달리기별", "Per run"), DAY("일별", "Daily"), WEEK("주별", "Weekly"), MONTH("월별", "Monthly");
+    val label: String get() = tr(ko, enName)
+}
 
 object Ranking {
     /** groupId가 null이면 전체. 그룹 지정 시 그 그룹으로 주고받은 기록만 센다. */
@@ -245,8 +257,11 @@ object Ranking {
 
 class TrendPoint(val bucketStartMs: Long, val label: String, val values: Map<String, Double>)
 
-enum class TrendMetric(val label: String, val unit: String) {
-    DISTANCE("거리", "km"), TIME("시간", "분"), PACE("평균 페이스", "분/km"), RUNS("횟수", "회"), ASCENT("상승고도", "m")
+enum class TrendMetric(private val ko: String, private val enName: String, private val unitKo: String, private val unitEn: String) {
+    DISTANCE("거리", "Distance", "km", "km"), TIME("시간", "Time", "분", "min"), PACE("평균 페이스", "Avg pace", "분/km", "min/km"),
+    RUNS("횟수", "Runs", "회", "runs"), ASCENT("상승고도", "Ascent", "m", "m");
+    val label: String get() = tr(ko, enName)
+    val unit: String get() = tr(unitKo, unitEn)
 }
 
 object Trend {
