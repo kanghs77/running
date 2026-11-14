@@ -13,6 +13,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,6 +23,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.pinch
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.assertIsSelected
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -249,20 +251,47 @@ class UiTest {
                 androidx.compose.ui.geometry.Offset(width * 0.55f, height * 0.5f), androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.5f))
         }; rule.waitForIdle()
         rule.onNodeWithText("전체 구간 보기").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithTag("map").performScrollTo(); rule.waitForIdle()
+        rule.onNodeWithTag("overlay").performScrollTo(); rule.waitForIdle()
         rule.waitUntil(5000) { tilePaths.isNotEmpty() }
         Thread.sleep(300); rule.waitForIdle()
         shot("11_analyze_map")
         rule.onNodeWithText("격자").performScrollTo().performClick(); rule.waitForIdle()
         assertFalse(app.store.settings.value.mapMode)
         shot("11_analyze_grid")
+        // 기록 하나를 골라 회전·이동: 버튼 회전, 손가락 끌기, 두 손가락 회전, 초기화
+        rule.onNodeWithText("부드럽게", substring = true).performScrollTo(); rule.waitForIdle()      // 세로로 먼저 내려 칩이 보이게
+        rule.onNodeWithTag("adj1").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("rotL").performScrollTo().performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("rotL").performClick(); rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText("(회전 10°)", substring = true).fetchSemanticsNodes().isNotEmpty())
+        rule.onNodeWithTag("overlay").performScrollTo().performTouchInput { swipe(center, center + androidx.compose.ui.geometry.Offset(120f, -90f), 300) }; rule.waitForIdle()
+        rule.onNodeWithTag("overlay").performTouchInput {
+            // 두 손가락을 중심 둘레로 90도 돌린다 (가로 -> 세로)
+            down(0, center + androidx.compose.ui.geometry.Offset(-200f, 0f)); down(1, center + androidx.compose.ui.geometry.Offset(200f, 0f))
+            for (k in 1..10) { val a = Math.toRadians(9.0 * k); val dx = (200 * Math.cos(a)).toFloat(); val dy = (200 * Math.sin(a)).toFloat()
+                moveTo(0, center + androidx.compose.ui.geometry.Offset(-dx, -dy)); moveTo(1, center + androidx.compose.ui.geometry.Offset(dx, dy)); advanceEventTime(20) }
+            up(0); up(1)
+        }; rule.waitForIdle()
+        val rotText = rule.onAllNodesWithText("(회전 ", substring = true).fetchSemanticsNodes().first().config.toString()
+        val deg = Regex("회전 (-?\\d+)°").find(rotText)!!.groupValues[1].toInt()
+        assertTrue("deg=$deg", Math.floorMod(deg, 360) in 270..290)        // 10° - 90° = -80°
+        shot("11_analyze_aligned")
+        rule.onNodeWithTag("xfReset").performScrollTo().performClick(); rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText("(회전 0°)", substring = true).fetchSemanticsNodes().isNotEmpty())
+        rule.onNodeWithText("부드럽게", substring = true).performScrollTo(); rule.waitForIdle()
+        rule.onNodeWithTag("adj0").performClick(); rule.waitForIdle()
+        assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("rotL")).fetchSemanticsNodes().isEmpty())
         rule.onNodeWithText("지도").performScrollTo().performClick(); rule.waitForIdle()
         rule.onNodeWithText("전체 구간 보기").performScrollTo().performClick(); rule.waitForIdle()
         assertTrue(rule.onAllNodesWithText("전체 구간 보기").fetchSemanticsNodes().isEmpty())
         rule.onAllNodesWithText("분석").onFirst().performScrollTo(); rule.waitForIdle()     // 맨 위로
         rule.onNodeWithText("기간 추세").performClick(); rule.waitForIdle()
+        // 막대를 탭하면 정확한 값이 나온다
+        rule.onNodeWithTag("bars").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.5f)) }; rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText(" km", substring = true).fetchSemanticsNodes().isNotEmpty())
+        assertTrue(rule.onAllNodesWithText("● ", substring = true).fetchSemanticsNodes().isNotEmpty())
         shot("12_analyze_trend")
-        for (m in listOf("평균 페이스", "횟수", "상승고도", "일별", "월별", "달리기별", "전체")) {
+        for (m in listOf("평균 페이스", "횟수", "일별", "월별", "달리기별", "전체")) {
             rule.onNodeWithText(m).performScrollTo().performClick(); rule.waitForIdle()
         }
         rule.onNodeWithTag("tab3").performClick(); rule.waitForIdle()
@@ -300,7 +329,15 @@ class UiTest {
         Thread.sleep(300); rule.waitForIdle()
         shot("17_detail_mine")
         rule.onNodeWithText("높이(API)").assertIsSelected()
+        // 그래프 위에서 좌우로 끌면 그래프가 넘어가지 않고 선택 지점이 연속으로 움직인다
+        fun cursorKm() = rule.onAllNodesWithText("km ", substring = true).fetchSemanticsNodes().first().config.toString().let { Regex("km ([0-9.]+)").find(it)!!.groupValues[1].toDouble() }
+        val kmBefore = cursorKm()
+        rule.onNodeWithTag("pager").performTouchInput { swipe(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.4f), androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.4f), 300) }; rule.waitForIdle()
+        assertTrue("before=$kmBefore after=${cursorKm()}", cursorKm() > kmBefore + 0.3)
         rule.onNodeWithTag("pager").performTouchInput { swipeLeft() }; rule.waitForIdle()
+        assertTrue(cursorKm() < kmBefore)
+        rule.onNodeWithText("높이(API)").assertIsSelected()
+        rule.onNodeWithText("높이(GPS)").performClick(); rule.waitForIdle()
         rule.onNodeWithText("높이(GPS)").assertIsSelected()
         rule.onNodeWithText("속도").performClick(); rule.waitForIdle()
         rule.onNodeWithText("속도").assertIsSelected()

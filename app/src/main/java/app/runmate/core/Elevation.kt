@@ -259,7 +259,7 @@ class TrendPoint(val bucketStartMs: Long, val label: String, val values: Map<Str
 
 enum class TrendMetric(private val ko: String, private val enName: String, private val unitKo: String, private val unitEn: String) {
     DISTANCE("거리", "Distance", "km", "km"), TIME("시간", "Time", "분", "min"), PACE("평균 페이스", "Avg pace", "분/km", "min/km"),
-    RUNS("횟수", "Runs", "회", "runs"), ASCENT("상승고도", "Ascent", "m", "m");
+    RUNS("횟수", "Runs", "회", "runs");
     val label: String get() = tr(ko, enName)
     val unit: String get() = tr(unitKo, unitEn)
 }
@@ -280,6 +280,8 @@ object Trend {
         val d = java.time.Instant.ofEpochMilli(ms).atZone(zone)
         return when (b) {
             Bucket.MONTH -> "${d.year % 100}.${d.monthValue}"
+            // 달리기별: 같은 날 여러 번 뛴 것을 구분할 수 있게 날짜 아래에 시각을 적는다
+            Bucket.RUN -> "${d.monthValue}/${d.dayOfMonth}\n" + String.format("%02d:%02d", d.hour, d.minute)
             else -> "${d.monthValue}/${d.dayOfMonth}"
         }
     }
@@ -297,7 +299,6 @@ object Trend {
                     TrendMetric.TIME -> dur / 60.0
                     TrendMetric.PACE -> if (dist > 0) dur / 60.0 / (dist / 1000.0) else Double.NaN
                     TrendMetric.RUNS -> l.size.toDouble()
-                    TrendMetric.ASCENT -> l.sumOf { it.ascentM }
                 }
             }.filterValues { it.isFinite() }
             if (vals.isNotEmpty()) out.add(TrendPoint(start, label(start, b, zone), vals))

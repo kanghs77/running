@@ -807,6 +807,30 @@ class MapMathTest {
         assertTrue(Mercator.zoomFor(fit, 3f) in 14..16)
     }
 
+    @Test fun trackTransform() {
+        val id = app.runmate.ui.Xf()
+        assertEquals(3f, id.x(3f, 4f), 1e-5f); assertEquals(4f, id.y(3f, 4f), 1e-5f)
+        val r90 = app.runmate.ui.Xf(deg = 90f)                     // 반시계 90도: 동쪽(1,0) -> 북쪽(0,1)
+        assertEquals(0f, r90.x(1f, 0f), 1e-5f); assertEquals(1f, r90.y(1f, 0f), 1e-5f)
+        val moved = app.runmate.ui.Xf(dx = 10f, dy = -5f, deg = 180f)   // 회전 후 이동, 시작점(0,0)은 이동량만큼만 움직인다
+        assertEquals(10f, moved.x(0f, 0f), 1e-5f); assertEquals(-5f, moved.y(0f, 0f), 1e-5f)
+        assertEquals(8f, moved.x(2f, 0f), 1e-4f); assertEquals(-5f, moved.y(2f, 0f), 1e-4f)
+        // 회전은 길이를 보존한다
+        val any = app.runmate.ui.Xf(deg = 37f)
+        assertEquals(5.0, Math.hypot(any.x(3f, 4f).toDouble(), any.y(3f, 4f).toDouble()), 1e-4)
+    }
+
+    @Test fun trendRunLabelHasTime() {
+        val z = java.time.ZoneId.of("Asia/Seoul")
+        val ms = java.time.ZonedDateTime.of(2026, 11, 14, 6, 5, 0, 0, z).toInstant().toEpochMilli()
+        val metas = listOf(TrackMeta("1", "a", "철수", ms, 1800, 5000.0, 5.0, false), TrackMeta("2", "a", "철수", ms + 3 * 3600_000, 1800, 6000.0, 5.0, false))
+        val run = Trend.compute(metas, Bucket.RUN, TrendMetric.DISTANCE, z)
+        assertEquals(listOf("11/14\n06:05", "11/14\n09:05"), run.map { it.label })      // 같은 날 두 번 뛴 것을 시각으로 구분
+        assertEquals(listOf("11/14"), Trend.compute(metas, Bucket.DAY, TrendMetric.DISTANCE, z).map { it.label })
+        assertEquals(11.0, Trend.compute(metas, Bucket.DAY, TrendMetric.DISTANCE, z)[0].values["a"]!!, 1e-9)
+        assertEquals(setOf("DISTANCE", "TIME", "PACE", "RUNS"), TrendMetric.values().map { it.name }.toSet())   // 상승고도 항목 없음
+    }
+
     @Test fun chartZoomState() {
         val c = app.runmate.ui.ChartState()
         assertFalse(c.zoomed)

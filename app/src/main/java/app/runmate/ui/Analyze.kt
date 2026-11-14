@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -81,6 +82,8 @@ private fun CompareView(selected: SnapshotStateList<String>) {
     var view by rememberSaveable { mutableStateOf("PACE") }      // Metric 이름 또는 "ROUTE"
     var smooth by rememberSaveable { mutableFloatStateOf(30f) }
     val chart = remember { ChartState() }
+    val xf = remember { mutableStateMapOf<String, Xf>() }          // 기록별 이동·회전
+    var adjust by remember { mutableStateOf<String?>(null) }       // 지금 조정 중인 기록
 
     val ids = selected.filter { id -> metas.any { it.id == id } }
     val tracks by produceState<Map<String, Track>>(emptyMap(), ids.joinToString(","), metas.filter { it.id in ids }.joinToString(",") { it.eleSrc }) {
@@ -125,28 +128,63 @@ private fun CompareView(selected: SnapshotStateList<String>) {
         if (series.size < ids.size && series.isNotEmpty()) Text(tr("일부 기록에는 이 데이터가 없어 제외됐어요.", "Some runs were left out because they don't have this data."), color = Dim, style = MaterialTheme.typography.labelSmall)
         if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text(tr("전체 구간 보기", "Show full range")) }
 
-        // 그래프에서 고른 지점이 경로의 어디인지 표시
+        // 그래프에서 고른 지점이 경로의 어디인지 표시. 모든 기록의 시작점을 한곳에 맞춰 겹쳐 그린다.
         val axisPts = remember(tracks, xAxis) { tracks.mapValues { (_, t) -> Series.of(t, xAxis, Metric.DIST, 0.0) } }
         fun markIndex(id: String): Int? = chart.cursorX?.let { xv -> axisPts[id]?.let { p -> if (xv <= p.xs.last() + 1e-9) nearest(p, xv) else null } }
-        val anyGeo = ids.any { tracks[it]?.oLat != null }
-        SectionTitle(tr("위치", "Location"))
-        if (anyGeo) Chips(listOf(true to tr("지도", "Map"), false to tr("격자", "Grid")), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
-        Surface(Modifier.fillMaxWidth().height(300.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
-            if (anyGeo && settings.mapMode) {
-                val geos = remember(tracks, ids.joinToString(",")) { ids.mapIndexedNotNull { i, id -> tracks[id]?.let { geoTrack(it, Palette[i % Palette.size]) } } }
-                MapTrackPlot(geos, markers = ids.mapIndexedNotNull { i, id -> val t = tracks[id]; val k = markIndex(id); if (t != null && k != null) geoMarker(t, k, Palette[i % Palette.size]) else null })
-            } else {
-                val plots = remember(tracks, ids.joinToString(",")) {
-                    ids.mapIndexedNotNull { i, id -> tracks[id]?.let { t -> PlotTrack(Palette[i % Palette.size], FloatArray(t.n) { t.x[it] / 10f }, FloatArray(t.n) { t.y[it] / 10f }) } }
+        if (adjust != null && adjust !in ids) adjust = null
+        val ref = ids.firstNotNullOfOrNull { id -> tracks[id]?.takeIf { it.oLat != null && it.oLon != null } }
+        val onMap = ref != null && settings.mapMode
+        val base = remember(tracks, ids.joinToString(",")) {
+            ids.mapIndexedNotNull { i, id ->
+                tracks[id]?.let { t ->
+                    val step = maxOf(1, t.n / 800)
+                    val idx = (0 until t.n step step).toMutableList().also { if (it.last() != t.n - 1) it.add(t.n - 1) }
+                    Triple(id, Palette[i % Palette.size], FloatArray(idx.size) { t.x[idx[it]] / 10f } to FloatArray(idx.size) { t.y[idx[it]] / 10f })
                 }
-                TrackPlot(plots, markers = ids.mapIndexedNotNull { i, id -> val t = tracks[id]; val k = markIndex(id); if (t != null && k != null) PlotMarker(Palette[i % Palette.size], t.x[k] / 10f, t.y[k] / 10f) else null })
             }
         }
+        val radius = remember(base) { base.maxOfOrNull { (_, _, p) -> p.first.indices.maxOfOrNull { kotlin.math.hypot(p.first[it], p.second[it]) } ?: 0f } ?: 0f }
+        SectionTitle(tr("위치 (시작점을 맞춰 겹쳐 보기)", "Location (overlaid at start points)"))
+        if (ref != null) Chips(listOf(true to tr("지도", "Map"), false to tr("격자", "Grid")), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
+        Surface(Modifier.fillMaxWidth().height(320.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
+            OverlayPlot(
+                tracks = base.map { (id, color, p) ->
+                    val f = xf[id] ?: Xf()
+                    OverlayTrack(color, FloatArray(p.first.size) { f.x(p.first[it], p.second[it]) }, FloatArray(p.first.size) { f.y(p.first[it], p.second[it]) }, highlight = id == adjust)
+                },
+                markers = ids.mapIndexedNotNull { i, id ->
+                    val t = tracks[id]; val k = markIndex(id)
+                    if (t == null || k == null) null else { val f = xf[id] ?: Xf(); PlotMarker(Palette[i % Palette.size], f.x(t.x[k] / 10f, t.y[k] / 10f), f.y(t.x[k] / 10f, t.y[k] / 10f)) }
+                },
+                radiusM = radius,
+                origin = if (onMap) ref!!.oLat!! to ref.oLon!! else null,
+                adjusting = adjust != null,
+                onDrag = { dx, dy -> adjust?.let { id -> val f = xf[id] ?: Xf(); xf[id] = f.copy(dx = f.dx + dx, dy = f.dy + dy) } },
+                onRotate = { d -> adjust?.let { id -> val f = xf[id] ?: Xf(); xf[id] = f.copy(deg = (f.deg + d) % 360f) } },
+            )
+        }
         Text(
-            if (anyGeo && settings.mapMode) tr("지도에는 내 기록만 표시됩니다. 그룹원 기록은 실제 위치가 공유되지 않아요.", "Only your own runs appear on the map. Group members' real locations are not shared.")
+            if (onMap) tr("모든 기록의 시작점을 첫 번째 내 기록의 실제 출발 위치에 맞춰 겹쳐 그립니다.", "All runs are overlaid with their start points placed at the real start of your first run.")
             else tr("각 기록의 시작점을 원점(0,0)에 맞춰 겹쳐 그립니다.", "Runs are overlaid with each start point at the origin (0,0)."),
             color = Dim, style = MaterialTheme.typography.labelSmall,
         )
+        SectionTitle(tr("위치 맞추기 (기록을 골라 이동·회전)", "Align a run (pick one to move/rotate)"))
+        Chips(listOf<Pair<String?, String>>(null to tr("끄기", "Off")) + ids.map { id ->
+            val m = metas.first { it.id == id }
+            id to "${if (m.mine) tr("나", "Me") else m.ownerName} ${fmtDay(m.startMs)}"
+        }, adjust, tagPrefix = "adj") { adjust = it }
+        adjust?.let { id ->
+            val f = xf[id] ?: Xf()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TextButton(onClick = { xf[id] = f.copy(deg = (f.deg + 5f) % 360f) }, modifier = Modifier.testTag("rotL")) { Text("↺ 5°") }
+                TextButton(onClick = { xf[id] = f.copy(deg = (f.deg - 5f) % 360f) }, modifier = Modifier.testTag("rotR")) { Text("↻ 5°") }
+                TextButton(onClick = { xf.remove(id) }, modifier = Modifier.testTag("xfReset")) { Text(tr("초기화", "Reset")) }
+            }
+            Text(
+                tr("경로 그림 위에서 한 손가락으로 끌면 이동, 두 손가락으로 돌리면 회전합니다. (회전 ${f.deg.toInt()}°)", "On the route view, drag with one finger to move and twist with two fingers to rotate. (rotation ${f.deg.toInt()}°)"),
+                color = Dim, style = MaterialTheme.typography.labelSmall,
+            )
+        }
         SectionTitle(tr("부드럽게: ${smooth.toInt()}초 평균", "Smoothing: ${smooth.toInt()} s average"))
         Slider(value = smooth, onValueChange = { smooth = it }, valueRange = 0f..180f)
     }
@@ -202,7 +240,14 @@ private fun TrendView() {
     Spacer(Modifier.height(10.dp))
     if (pts.isEmpty()) Text(tr("이 기간에는 기록이 없어요.", "No runs in this period."), color = Dim)
     else {
-        BarChart(pts, visible, metric.unit, height = 260.dp, yFormat = if (metric == TrendMetric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) })
+        BarChart(pts, visible.map { (id, c) -> Triple(id, c, if (id == me.id) tr("나", "Me") else names[id] ?: "?") }, metric.unit, height = 260.dp,
+            yFormat = if (metric == TrendMetric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) },
+            exactFormat = when (metric) {
+                TrendMetric.PACE -> { v -> Fmt.paceMin(v) }
+                TrendMetric.DISTANCE -> { v -> String.format("%.2f", v) }
+                TrendMetric.TIME -> { v -> String.format("%.1f", v) }
+                TrendMetric.RUNS -> { v -> String.format("%.0f", v) }
+            })
         if (pts.size > 30) Text(tr("최근 30개 묶음만 표시합니다.", "Only the latest 30 groups are shown."), color = Dim, style = MaterialTheme.typography.labelSmall)
     }
     SectionTitle(tr("사람 (눌러서 숨기기/보이기)", "People (tap to hide/show)"))

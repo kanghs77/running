@@ -7,6 +7,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.calculateRotation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -210,7 +212,7 @@ fun LineChart(
                 Text("● ${s.label}: ${if (ok) yFormat(s.pts.ys[i!!]) + " " + yUnit else "-"}", color = s.color, style = MaterialTheme.typography.labelMedium)
             }
         } else if (showCursorValues && valid.isNotEmpty()) {
-            Text(tr("탭: 값·위치 보기 · 두 손가락: 확대/축소", "Tap: value & location · Two fingers: zoom"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
+            Text(tr("탭·드래그: 값·위치 보기 · 두 손가락: 확대/축소", "Tap or drag: value & location · Two fingers: zoom"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
         }
     }
 }
@@ -280,39 +282,182 @@ fun TrackPlot(tracks: List<PlotTrack>, modifier: Modifier = Modifier, markers: L
     }
 }
 
-/** 기간별 묶음 막대 그래프 (사람별 색) */
+/**
+ * 기간별 묶음 막대 그래프 (사람별 색). 막대를 탭하면 그 묶음의 정확한 값을 아래에 보여준다.
+ * owners: (id, 색, 이름)
+ */
 @Composable
-fun BarChart(points: List<TrendPoint>, owners: List<Pair<String, Color>>, unit: String, modifier: Modifier = Modifier, height: Dp = 220.dp, yFormat: (Double) -> String = { Fmt.num(it) }) {
+fun BarChart(
+    points: List<TrendPoint>, owners: List<Triple<String, Color, String>>, unit: String, modifier: Modifier = Modifier, height: Dp = 220.dp,
+    yFormat: (Double) -> String = { Fmt.num(it) }, exactFormat: (Double) -> String = yFormat,
+) {
     val tm = rememberTextMeasurer()
     val pts = points.takeLast(30)
-    Canvas(modifier.fillMaxWidth().height(height)) {
-        val l = 44.dp.toPx(); val r = size.width - 8.dp.toPx(); val t = 8.dp.toPx(); val b = size.height - 20.dp.toPx()
-        if (r <= l || b <= t) return@Canvas
-        var ymax = 0.0
-        for (p in pts) for ((id, _) in owners) p.values[id]?.let { ymax = max(ymax, it) }
-        if (ymax <= 0) ymax = 1.0
-        ymax *= 1.08
-        fun sy(v: Double) = (b - v / ymax * (b - t)).toFloat()
-        for (v in Geo.ticks(0.0, ymax, 4)) {
-            drawLine(Grid, Offset(l, sy(v)), Offset(r, sy(v)), 1f)
-            label(tm, yFormat(v), l - 4.dp.toPx(), sy(v) - 7.dp.toPx(), alignRight = true)
-        }
-        drawLine(Axis, Offset(l, b), Offset(r, b), 1.5f)
-        label(tm, unit, l + 4.dp.toPx(), t)
-        if (pts.isEmpty() || owners.isEmpty()) return@Canvas
-        val slot = (r - l) / pts.size
-        val bw = min(slot * 0.8f / owners.size, 22.dp.toPx())
-        val every = max(1, (pts.size * 34.dp.toPx() / (r - l)).toInt() + 1)
-        for ((i, p) in pts.withIndex()) {
-            val cx = l + slot * (i + 0.5f)
-            val start = cx - bw * owners.size / 2
-            for ((k, o) in owners.withIndex()) {
-                val v = p.values[o.first] ?: continue
-                drawRect(o.second, Offset(start + k * bw, sy(v)), Size(max(1f, bw - 1f), b - sy(v)))
+    var selected by remember { mutableStateOf<Long?>(null) }      // 선택한 묶음의 시작 시각
+    val twoLine = pts.any { it.label.contains('\n') }
+    val count = rememberUpdatedState(pts.size)
+    val keys = rememberUpdatedState(pts.map { it.bucketStartMs })
+    Column(modifier) {
+        Canvas(Modifier.fillMaxWidth().height(height).testTag("bars").pointerInput(Unit) {
+            detectTapGestures { o ->
+                val l = 44.dp.toPx(); val r = size.width - 8.dp.toPx()
+                val n = count.value
+                if (n > 0 && r > l) {
+                    val i = (((o.x - l) / (r - l)) * n).toInt().coerceIn(0, n - 1)
+                    selected = keys.value[i].takeIf { it != selected }
+                }
             }
-            if (i % every == 0 || i == pts.size - 1) label(tm, p.label, cx, b + 3.dp.toPx(), center = true)
+        }) {
+            val l = 44.dp.toPx(); val r = size.width - 8.dp.toPx(); val t = 8.dp.toPx(); val b = size.height - (if (twoLine) 34.dp else 20.dp).toPx()
+            if (r <= l || b <= t) return@Canvas
+            var ymax = 0.0
+            for (p in pts) for (o in owners) p.values[o.first]?.let { ymax = max(ymax, it) }
+            if (ymax <= 0) ymax = 1.0
+            ymax *= 1.08
+            fun sy(v: Double) = (b - v / ymax * (b - t)).toFloat()
+            for (v in Geo.ticks(0.0, ymax, 4)) {
+                drawLine(Grid, Offset(l, sy(v)), Offset(r, sy(v)), 1f)
+                label(tm, yFormat(v), l - 4.dp.toPx(), sy(v) - 7.dp.toPx(), alignRight = true)
+            }
+            drawLine(Axis, Offset(l, b), Offset(r, b), 1.5f)
+            label(tm, unit, l + 4.dp.toPx(), t)
+            if (pts.isEmpty() || owners.isEmpty()) return@Canvas
+            val slot = (r - l) / pts.size
+            val bw = min(slot * 0.8f / owners.size, 22.dp.toPx())
+            val every = max(1, (pts.size * 38.dp.toPx() / (r - l)).toInt() + 1)
+            for ((i, p) in pts.withIndex()) {
+                val cx = l + slot * (i + 0.5f)
+                if (p.bucketStartMs == selected) drawRect(Color(0x22FFFFFF), Offset(l + slot * i, t), Size(slot, b - t))
+                val start = cx - bw * owners.size / 2
+                for ((k, o) in owners.withIndex()) {
+                    val v = p.values[o.first] ?: continue
+                    drawRect(o.second, Offset(start + k * bw, sy(v)), Size(max(1f, bw - 1f), b - sy(v)))
+                }
+                if (i % every == 0 || i == pts.size - 1 || p.bucketStartMs == selected) label(tm, p.label, cx, b + 3.dp.toPx(), center = true)
+            }
+        }
+        val sel = pts.firstOrNull { it.bucketStartMs == selected }
+        if (sel != null) {
+            Text(sel.label.replace('\n', ' '), style = MaterialTheme.typography.labelMedium, color = Color.White)
+            for (o in owners) sel.values[o.first]?.let { v ->
+                Text("● ${o.third}: ${exactFormat(v)} $unit", color = o.second, style = MaterialTheme.typography.labelMedium)
+            }
+        } else if (pts.isNotEmpty()) {
+            Text(tr("막대를 탭하면 정확한 값을 볼 수 있어요", "Tap a bar to see exact values"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
         }
     }
+}
+
+class OverlayTrack(val color: Color, val xs: FloatArray, val ys: FloatArray, val highlight: Boolean = false)
+
+/**
+ * 분석용 겹쳐 보기. 모든 기록의 시작점을 원점에 놓고(m 단위, 위가 북쪽) 그린다.
+ * - origin이 있으면 그 위경도를 원점으로 하는 실제 지도를 밑에 깐다.
+ * - adjusting이면 한 손가락 끌기 = 이동(onDrag, m), 두 손가락 돌리기 = 회전(onRotate, 반시계 방향 각도).
+ * 보기 범위(radiusM)는 이동/회전과 무관하게 고정되어, 조정하는 동안 화면이 흔들리지 않는다.
+ */
+@Composable
+fun OverlayPlot(
+    tracks: List<OverlayTrack>, markers: List<PlotMarker>, radiusM: Float, modifier: Modifier = Modifier,
+    origin: Pair<Double, Double>? = null, adjusting: Boolean = false,
+    onDrag: (Float, Float) -> Unit = { _, _ -> }, onRotate: (Float) -> Unit = {},
+) {
+    val tm = rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val tiles = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.graphics.ImageBitmap>() }
+    val drag = rememberUpdatedState(onDrag); val rot = rememberUpdatedState(onRotate)
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
+        val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
+        if (w <= 0f || h <= 0f) return@BoxWithConstraints
+        val rad = max(radiusM, 40f) * 1.15f
+        val ppm = min(w, h) / 2f / rad                       // 화면 px / m
+        val scale = rememberUpdatedState(ppm)
+        // 지도 타일
+        val lat0 = origin?.first; val lon0 = origin?.second
+        val fit = if (lat0 != null) ppm * Mercator.metersPerUnit(lat0) else 0.0      // 화면 px / 세계 단위
+        val z = if (lat0 != null) Mercator.zoomFor(fit, density) else 0
+        val n = 1 shl z
+        val cx = lon0?.let { Mercator.x(it) } ?: 0.0; val cy = lat0?.let { Mercator.y(it) } ?: 0.0
+        val tx0 = Math.floor((cx - w / 2 / fit) * n).toInt().coerceIn(0, n - 1); val tx1 = Math.floor((cx + w / 2 / fit) * n).toInt().coerceIn(0, n - 1)
+        val ty0 = Math.floor((cy - h / 2 / fit) * n).toInt().coerceIn(0, n - 1); val ty1 = Math.floor((cy + h / 2 / fit) * n).toInt().coerceIn(0, n - 1)
+        val few = lat0 != null && (tx1 - tx0 + 1) * (ty1 - ty0 + 1) <= 48
+        androidx.compose.runtime.LaunchedEffect(lat0, lon0, z, tx0, tx1, ty0, ty1) {
+            if (few) for (x in tx0..tx1) for (y in ty0..ty1) {
+                val key = "$z/$x/$y"
+                if (key !in tiles) launch { app.tiles.get(z, x, y)?.let { tiles[key] = it } }
+            }
+        }
+        val gesture = if (!adjusting) Modifier else Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                while (true) {
+                    val ev = awaitPointerEvent()
+                    val pressed = ev.changes.filter { it.pressed }
+                    if (pressed.isEmpty()) break
+                    val pan = ev.calculatePan()
+                    if (pan != Offset.Zero) drag.value(pan.x / scale.value, -pan.y / scale.value)
+                    if (pressed.size >= 2) { val r = ev.calculateRotation(); if (r != 0f) rot.value(-r) }
+                    ev.changes.forEach { it.consume() }
+                }
+            }
+        }
+        Canvas(Modifier.fillMaxSize().testTag("overlay").then(gesture)) {
+            fun px(x: Float) = w / 2 + x * ppm
+            fun py(y: Float) = h / 2 - y * ppm
+            val onMap = lat0 != null
+            if (onMap) {
+                drawRect(Color(0xFFDDE3E8))
+                if (few) for (x in tx0..tx1) for (y in ty0..ty1) {
+                    val img = tiles["$z/$x/$y"] ?: continue
+                    val l = (w / 2 + (x.toDouble() / n - cx) * fit).toFloat(); val t = (h / 2 + (y.toDouble() / n - cy) * fit).toFloat()
+                    val r = (w / 2 + ((x + 1.0) / n - cx) * fit).toFloat(); val b = (h / 2 + ((y + 1.0) / n - cy) * fit).toFloat()
+                    drawImage(img, dstOffset = androidx.compose.ui.unit.IntOffset(Math.floor(l.toDouble()).toInt(), Math.floor(t.toDouble()).toInt()),
+                        dstSize = androidx.compose.ui.unit.IntSize(Math.ceil((r - l).toDouble()).toInt() + 1, Math.ceil((b - t).toDouble()).toInt() + 1))
+                }
+            }
+            val bar = Geo.niceFloor((w * 0.3f / ppm).toDouble()).toFloat()
+            if (!onMap) {
+                var g = -Math.ceil((w / 2 / ppm / bar).toDouble()).toFloat() * bar
+                var guard = 0
+                while (px(g) <= w && guard++ < 80) { drawLine(Grid, Offset(px(g), 0f), Offset(px(g), h), 1f); g += bar }
+                g = -Math.ceil((h / 2 / ppm / bar).toDouble()).toFloat() * bar; guard = 0
+                while (py(g) >= 0 && guard++ < 80) { drawLine(Grid, Offset(0f, py(g)), Offset(w, py(g)), 1f); g += bar }
+            }
+            for (t in tracks) {
+                if (t.xs.isEmpty()) continue
+                val p = Path()
+                p.moveTo(px(t.xs[0]), py(t.ys[0]))
+                for (i in 1 until t.xs.size) p.lineTo(px(t.xs[i]), py(t.ys[i]))
+                val wd = (if (t.highlight) 5f else 3f).dp.toPx()
+                if (onMap || t.highlight) drawPath(p, if (onMap) Color(0xCC000000) else Color.White, style = Stroke(wd + 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                drawPath(p, t.color, style = Stroke(wd, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                val s0 = Offset(px(t.xs[0]), py(t.ys[0]))
+                drawCircle(if (onMap) Color.Black else Color.White, 5.5.dp.toPx(), s0); drawCircle(t.color, 3.5.dp.toPx(), s0)
+                val e = Offset(px(t.xs.last()), py(t.ys.last())); val q = 4.5.dp.toPx()
+                drawRect(if (onMap) Color.Black else Color.White, Offset(e.x - q, e.y - q), Size(2 * q, 2 * q)); drawRect(t.color, Offset(e.x - q * 0.6f, e.y - q * 0.6f), Size(q * 1.2f, q * 1.2f))
+            }
+            for (m in markers) {
+                val o = Offset(px(m.x), py(m.y))
+                if (onMap) drawCircle(Color.Black, 11.dp.toPx(), o)
+                drawCircle(Color.White, 9.dp.toPx(), o); drawCircle(m.color, 6.dp.toPx(), o)
+            }
+            val fg = if (onMap) Color.Black else Color.White
+            val by = h - 10.dp.toPx(); val bx = 10.dp.toPx(); val bw = bar * ppm
+            if (onMap) drawRect(Color(0xAAFFFFFF), Offset(bx - 4.dp.toPx(), by - 18.dp.toPx()), Size(bw + 70.dp.toPx(), 24.dp.toPx()))
+            drawLine(fg, Offset(bx, by), Offset(bx + bw, by), 2.dp.toPx())
+            drawLine(fg, Offset(bx, by - 4.dp.toPx()), Offset(bx, by + 1.dp.toPx()), 2.dp.toPx())
+            drawLine(fg, Offset(bx + bw, by - 4.dp.toPx()), Offset(bx + bw, by + 1.dp.toPx()), 2.dp.toPx())
+            label(tm, Fmt.meters(bar.toDouble()), bx + bw + 6.dp.toPx(), by - 13.dp.toPx(), style = LabelStyle.copy(fontSize = 12.sp, color = fg))
+            if (onMap) label(tm, "© OpenStreetMap", w - 4.dp.toPx(), h - 14.dp.toPx(), alignRight = true, style = LabelStyle.copy(fontSize = 9.sp, color = Color(0xFF333333)))
+            else label(tm, "N↑", w - 6.dp.toPx(), 4.dp.toPx(), alignRight = true)
+        }
+    }
+}
+
+/** 기록별 이동(m)·회전(도, 반시계) */
+data class Xf(val dx: Float = 0f, val dy: Float = 0f, val deg: Float = 0f) {
+    fun x(px: Float, py: Float): Float { val a = Math.toRadians(deg.toDouble()); return (px * Math.cos(a) - py * Math.sin(a)).toFloat() + dx }
+    fun y(px: Float, py: Float): Float { val a = Math.toRadians(deg.toDouble()); return (px * Math.sin(a) + py * Math.cos(a)).toFloat() + dy }
 }
 
 class GeoTrack(val color: Color, val lats: DoubleArray, val lons: DoubleArray)

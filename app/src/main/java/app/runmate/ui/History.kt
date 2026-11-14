@@ -53,8 +53,6 @@ import app.runmate.core.Export
 import app.runmate.core.Fmt
 import app.runmate.core.Metric
 import app.runmate.core.Pts
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import app.runmate.core.Series
 import app.runmate.core.Track
 import app.runmate.core.TrackMeta
@@ -189,14 +187,15 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
             }
             if (!canMap) Text(tr("받은 기록에는 실제 위치가 없어(상대좌표만 공유) 지도에 올릴 수 없어요.", "Received runs have no real location (only relative coordinates are shared), so they can't be shown on the map."), color = Dim, style = MaterialTheme.typography.labelSmall)
 
-            val pager = rememberPagerState { pages.size }
-            SectionTitle(tr("그래프 (좌우로 넘기기)", "Charts (swipe left/right)"))
-            Chips(pages.indices.map { it to pages[it].label }, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
+            var page by rememberSaveable(id) { mutableIntStateOf(0) }
+            val pg = pages[page.coerceIn(0, pages.size - 1)]
+            SectionTitle(tr("그래프", "Charts"))
+            Chips(pages.indices.map { it to pages[it].label }, page.coerceIn(0, pages.size - 1)) { page = it }
             if (hasApi) Text(tr("API 출처: ${t.eleSrc}", "API source: ${t.eleSrc}"), color = Dim, style = MaterialTheme.typography.labelSmall)
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().testTag("pager"), verticalAlignment = Alignment.Top) { p ->
-                val pg = pages[p]
+            // 그래프 위에서 좌우로 끌면 선택 지점이 연속으로 움직이고, 위 경로의 빨간 점이 따라간다
+            Box(Modifier.fillMaxWidth().testTag("pager")) {
                 LineChart(listOf(ChartSeries(pg.label, pg.color, pg.pts)), "km", pg.unit, height = 200.dp, state = chart,
-                    invertY = pg.invert, yFormat = pg.fmt, dragCursor = false)
+                    invertY = pg.invert, yFormat = pg.fmt, dragCursor = true)
             }
             if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text(tr("전체 구간 보기", "Show full range")) }
             if (meta.mine && !hasApi && t.oLat != null) {

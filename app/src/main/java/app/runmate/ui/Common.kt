@@ -16,6 +16,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,9 +70,12 @@ fun Stat(label: String, value: String, modifier: Modifier = Modifier, big: Boole
 }
 
 @Composable
-fun <T> Chips(options: List<Pair<T, String>>, selected: T, modifier: Modifier = Modifier, onSelect: (T) -> Unit) {
+fun <T> Chips(options: List<Pair<T, String>>, selected: T, modifier: Modifier = Modifier, tagPrefix: String? = null, onSelect: (T) -> Unit) {
     Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for ((v, label) in options) FilterChip(selected = v == selected, onClick = { onSelect(v) }, label = { Text(label) })
+        options.forEachIndexed { i, (v, label) ->
+            FilterChip(selected = v == selected, onClick = { onSelect(v) }, label = { Text(label) },
+                modifier = if (tagPrefix != null) Modifier.testTag("$tagPrefix$i") else Modifier)
+        }
     }
 }
 
