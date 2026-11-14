@@ -66,8 +66,23 @@ class LiveTest {
         assertTrue(res.ele!!.all { it in -500..3000 })     // 한강변: -50m ~ 300m
         // 예비 API도 단독으로 동작하는지
         val meteo = ElevationClient(http, topoBase = "http://127.0.0.1:1/x")
-        val res2 = ElevationProfile.resolve(t, meteo)!!
+        val res2n = ElevationProfile.resolve(t, meteo)
+        // 예비 API는 IP당 일일 무료 한도가 있다. 한도를 넘긴 날에는 이 부분만 건너뛴다(앱은 GPS 고도로 대체 후 나중에 재시도).
+        assumeTrue("Open-Meteo daily limit", res2n != null)
+        val res2 = res2n!!
         println("LIVE src=${res2.eleSrc} min=${res2.ele!!.min() / 10.0} max=${res2.ele!!.max() / 10.0}")
         assertEquals("copernicus90m", res2.eleSrc)
+    }
+
+    @Test fun realMapTile() {
+        live()
+        val n = 1 shl 16
+        val url = "https://tile.openstreetmap.org/16/${Math.floor(Mercator.x(126.978) * n).toInt()}/${Math.floor(Mercator.y(37.5665) * n).toInt()}.png"
+        http.newCall(okhttp3.Request.Builder().url(url).header("User-Agent", "RunMate/1.2 (Android running tracker)").build()).execute().use { r ->
+            assertEquals(200, r.code)
+            val b = r.body!!.bytes()
+            println("LIVE tile bytes=${b.size} cache=${r.header("Cache-Control")}")
+            assertEquals(0x89.toByte(), b[0]); assertEquals('P'.code.toByte(), b[1]); assertTrue(b.size > 500)
+        }
     }
 }

@@ -226,7 +226,7 @@ private fun RunningView(run: RunSnapshot) {
             Stat("거리 km", Fmt.km(run.distanceM))
             Stat("평균 페이스", Fmt.pace(if (elapsed > 0) run.distanceM / elapsed else 0.0))
             Stat("현재 페이스", Fmt.pace(run.speed))
-            Stat("상대높이 m", String.format("%+.0f", run.relAltM))
+            Stat("GPS 높이 m", String.format("%+.0f", run.relAltM))
         }
         Surface(Modifier.weight(1f).fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
             if (run.px.isEmpty()) Box(contentAlignment = Alignment.Center) { Text("첫 위치를 기다리는 중", color = Dim) }

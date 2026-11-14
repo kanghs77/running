@@ -792,3 +792,34 @@ class ExportTest {
         assertEquals(0, Export.zip(java.io.ByteArrayOutputStream(), emptyList(), z) { null })
     }
 }
+
+class MapMathTest {
+    @Test fun mercator() {
+        assertEquals(0.5, Mercator.x(0.0), 1e-12); assertEquals(0.5, Mercator.y(0.0), 1e-12)
+        // 서울 시청: z=16 타일 (55883, 25378)
+        val n = 1 shl 16
+        assertEquals(55883, Math.floor(Mercator.x(126.978) * n).toInt()); assertEquals(25378, Math.floor(Mercator.y(37.5665) * n).toInt())
+        assertTrue(Mercator.y(89.9) >= 0.0); assertTrue(Mercator.y(-89.9) <= 1.0)
+        assertEquals(40_075_016.686 * Math.cos(Math.toRadians(37.5)), Mercator.metersPerUnit(37.5), 1.0)
+        assertEquals(2, Mercator.zoomFor(0.0, 3f)); assertEquals(2, Mercator.zoomFor(Double.NaN, 3f)); assertEquals(19, Mercator.zoomFor(1e15, 3f))
+        // 1km 폭을 1000px 화면에 맞추면 줌 15~16
+        val fit = 1000.0 / (1000.0 / Mercator.metersPerUnit(37.5))
+        assertTrue(Mercator.zoomFor(fit, 3f) in 14..16)
+    }
+
+    @Test fun chartZoomState() {
+        val c = app.runmate.ui.ChartState()
+        assertFalse(c.zoomed)
+        c.transform(2f, 0.5f, 0f)
+        assertEquals(0.25f, c.from, 1e-4f); assertEquals(0.75f, c.to, 1e-4f); assertTrue(c.zoomed)
+        c.transform(1f, 0.5f, 10f)                       // 왼쪽 끝을 넘어 이동해도 범위 안
+        assertEquals(0f, c.from, 1e-6f); assertEquals(0.5f, c.to, 1e-4f)
+        c.transform(1000f, 1f, 0f)                       // 최대 확대 제한
+        assertTrue(c.to - c.from >= 0.0199f); assertTrue(c.to <= 1f + 1e-6f)
+        c.transform(0.0001f, 0.3f, 0f)                   // 축소는 전체까지만
+        assertEquals(0f, c.from, 1e-6f); assertEquals(1f, c.to, 1e-6f)
+        c.transform(Float.NaN, 0.5f, 0f); c.transform(0f, 0.5f, 0f); c.transform(2f, 5f, 0f)
+        assertTrue(c.from >= 0f && c.to <= 1f + 1e-6f && c.to > c.from)
+        c.reset(); assertFalse(c.zoomed)
+    }
+}

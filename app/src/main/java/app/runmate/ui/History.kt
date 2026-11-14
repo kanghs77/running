@@ -51,6 +51,9 @@ import app.runmate.RunController
 import app.runmate.core.Export
 import app.runmate.core.Fmt
 import app.runmate.core.Metric
+import app.runmate.core.Pts
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import app.runmate.core.Series
 import app.runmate.core.Track
 import app.runmate.core.TrackMeta
@@ -158,21 +161,43 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         val t = track
         if (t == null) Text("불러오는 중…", color = Dim)
         else {
-            SectionTitle("경로 (시작점 기준 상대좌표)")
-            Surface(Modifier.fillMaxWidth().height(280.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
-                TrackPlot(listOf(PlotTrack(Green, FloatArray(t.n) { t.x[it] / 10f }, FloatArray(t.n) { t.y[it] / 10f })))
-            }
             val hasApi = t.ele != null
-            SectionTitle(if (hasApi) "상대높이 · 고도 API (${t.eleSrc})" else "상대높이 · GPS 고도")
-            LineChart(listOf(ChartSeries("높이", Palette[1], Series.of(t, XAxis.DISTANCE, if (hasApi) Metric.ELE_API else Metric.ELE_GPS, 20.0))), "km", "m", height = 170.dp)
-            if (hasApi) {
-                SectionTitle("상대높이 · GPS 고도")
-                LineChart(listOf(ChartSeries("높이", Palette[2], Series.of(t, XAxis.DISTANCE, Metric.ELE_GPS, 20.0))), "km", "m", height = 150.dp)
+            val chart = remember(id) { ChartState() }
+            val settings by app.store.settings.collectAsStateWithLifecycle()
+            val canMap = t.oLat != null
+            val distPts = remember(t) { Series.cumDist(t).let { c -> DoubleArray(t.n) { c[it] / 1000.0 } }.let { Pts(it, it) } }
+            val pages = remember(t) {
+                buildList {
+                    if (hasApi) add(ChartPage("높이(API)", "m", Palette[1], Series.of(t, XAxis.DISTANCE, Metric.ELE_API, 20.0)))
+                    add(ChartPage("높이(GPS)", "m", Palette[2], Series.of(t, XAxis.DISTANCE, Metric.ELE_GPS, 20.0)))
+                    add(ChartPage("페이스", "분/km", Green, Series.of(t, XAxis.DISTANCE, Metric.PACE, 30.0), invert = true, fmt = { Fmt.paceMin(it) }))
+                    add(ChartPage("속도", "km/h", Palette[3], Series.of(t, XAxis.DISTANCE, Metric.SPEED, 30.0)))
+                }
             }
-            SectionTitle("페이스")
-            LineChart(listOf(ChartSeries("페이스", Green, Series.of(t, XAxis.DISTANCE, Metric.PACE, 30.0))), "km", "분/km", height = 170.dp, invertY = true, yFormat = { Fmt.paceMin(it) })
-            SectionTitle("속도")
-            LineChart(listOf(ChartSeries("속도", Palette[3], Series.of(t, XAxis.DISTANCE, Metric.SPEED, 30.0))), "km", "km/h", height = 170.dp)
+            val markIdx = chart.cursorX?.let { nearest(distPts, it) }
+            SectionTitle(if (canMap) "경로" else "경로 (시작점 기준 상대좌표)")
+            if (canMap) Chips(listOf(true to "지도", false to "격자"), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
+            Surface(Modifier.fillMaxWidth().height(300.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
+                if (canMap && settings.mapMode) {
+                    val geo = remember(t) { geoTrack(t, Green) }
+                    MapTrackPlot(listOfNotNull(geo), markers = listOfNotNull(markIdx?.let { geoMarker(t, it, Color(0xFFFF5252)) }))
+                } else {
+                    val plot = remember(t) { PlotTrack(Green, FloatArray(t.n) { t.x[it] / 10f }, FloatArray(t.n) { t.y[it] / 10f }) }
+                    TrackPlot(listOf(plot), markers = listOfNotNull(markIdx?.let { PlotMarker(Color(0xFFFF5252), t.x[it] / 10f, t.y[it] / 10f) }))
+                }
+            }
+            if (!canMap) Text("받은 기록에는 실제 위치가 없어(상대좌표만 공유) 지도에 올릴 수 없어요.", color = Dim, style = MaterialTheme.typography.labelSmall)
+
+            val pager = rememberPagerState { pages.size }
+            SectionTitle("그래프 (좌우로 넘기기)")
+            Chips(pages.indices.map { it to pages[it].label }, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
+            if (hasApi) Text("API 출처: ${t.eleSrc}", color = Dim, style = MaterialTheme.typography.labelSmall)
+            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().testTag("pager"), verticalAlignment = Alignment.Top) { p ->
+                val pg = pages[p]
+                LineChart(listOf(ChartSeries(pg.label, pg.color, pg.pts)), "km", pg.unit, height = 200.dp, state = chart,
+                    invertY = pg.invert, yFormat = pg.fmt, dragCursor = false)
+            }
+            if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text("전체 구간 보기") }
             if (meta.mine && !hasApi && t.oLat != null) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(enabled = !eleBusy, onClick = {
@@ -224,3 +249,5 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         )
     }
 }
+
+class ChartPage(val label: String, val unit: String, val color: Color, val pts: Pts, val invert: Boolean = false, val fmt: (Double) -> String = { Fmt.num(it) })

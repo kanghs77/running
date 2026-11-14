@@ -59,6 +59,7 @@ class App : Application() {
     lateinit var store: Store
     lateinit var engine: SyncEngine
     lateinit var elevation: ElevationClient
+    lateinit var tiles: TileStore
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val syncUi = MutableStateFlow(SyncUi())
     private val eleMutex = Mutex()
@@ -72,12 +73,13 @@ class App : Application() {
         store = Store(filesDir.resolve("data"))
         engine = SyncEngine(store, listOf(NtfyRelay(http), NostrRelay(http)))
         elevation = ElevationClient(http)
+        tiles = TileStore(cacheDir)
         createChannels()
         recoverJournal()
         try { scheduleBackground() } catch (e: Exception) { /* WorkManager 미초기화(테스트) */ }
     }
 
-    fun initForTest(s: Store, e: SyncEngine, el: ElevationClient) { store = s; engine = e; elevation = el }
+    fun initForTest(s: Store, e: SyncEngine, el: ElevationClient, t: TileStore = tiles) { store = s; engine = e; elevation = el; tiles = t }
 
     private fun createChannels() {
         val nm = getSystemService(NotificationManager::class.java) ?: return

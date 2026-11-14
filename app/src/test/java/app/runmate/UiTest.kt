@@ -18,6 +18,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.assertIsSelected
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.work.Configuration
@@ -45,6 +50,9 @@ class UiTest {
     private val relayA = FakeRelay("ntfy")
     private val relayB = FakeRelay("nostr")
     private lateinit var friend: SyncTest.Dev
+    private lateinit var tileServer: okhttp3.mockwebserver.MockWebServer
+    private val tilePaths = java.util.Collections.synchronizedList(ArrayList<String>())
+    private val tileAgents = java.util.Collections.synchronizedList(ArrayList<String>())
 
     private val setup = object : ExternalResource() {
         override fun before() {
@@ -53,7 +61,17 @@ class UiTest {
             val store = Store(tmpDir())
             // 죽은 주소: 테스트 중 실제 고도 API를 호출하지 않는다
             val dead = ElevationClient(OkHttpClient.Builder().connectTimeout(300, TimeUnit.MILLISECONDS).build(), "http://127.0.0.1:1/a", "http://127.0.0.1:1/b", 0)
-            app.initForTest(store, SyncEngine(store, listOf(relayA, relayB)), dead)
+            tileServer = okhttp3.mockwebserver.MockWebServer()
+            val bmp = android.graphics.Bitmap.createBitmap(256, 256, android.graphics.Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFB5D6A7.toInt()) }
+            val png = java.io.ByteArrayOutputStream().also { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+            tileServer.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): okhttp3.mockwebserver.MockResponse {
+                    tilePaths.add(request.path ?: ""); tileAgents.add(request.getHeader("User-Agent") ?: "")
+                    return okhttp3.mockwebserver.MockResponse().setHeader("Cache-Control", "max-age=86400").setBody(okio.Buffer().write(png))
+                }
+            }
+            tileServer.start()
+            app.initForTest(store, SyncEngine(store, listOf(relayA, relayB)), dead, TileStore(tmpDir(), tileServer.url("/").toString().trimEnd('/')))
             RunController.state.value = RunSnapshot(); RunController.finished.value = null; RunController.notice.value = null
             friend = SyncTest.Dev(listOf(relayA, relayB), "철수")
         }
@@ -218,11 +236,29 @@ class UiTest {
         rule.onNodeWithText("완료").performClick(); rule.waitForIdle()
         rule.waitUntil(5000) { rule.onAllNodesWithText("가로축").fetchSemanticsNodes().isNotEmpty() }
         shot("10_analyze_cmp")
-        for (m in listOf("속도", "상대높이(API)", "상대높이(GPS)", "누적거리", "경로 겹치기")) {
+        for (m in listOf("속도", "상대높이(API)", "상대높이(GPS)", "누적거리", "페이스")) {
             rule.onNodeWithText(m).performScrollTo().performClick(); rule.waitForIdle()
         }
-        shot("11_analyze_route")
-        rule.onNodeWithText("기간 추세").performScrollTo().performClick(); rule.waitForIdle()
+        // 그래프 탭 -> 선택 위치 표시, 두 손가락 확대 -> '전체 구간 보기' 버튼
+        rule.onNodeWithTag("chart").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.6f, height * 0.5f)) }; rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText("km ", substring = true).fetchSemanticsNodes().isNotEmpty())
+        rule.onNodeWithTag("chart").performTouchInput {
+            pinch(androidx.compose.ui.geometry.Offset(width * 0.45f, height * 0.5f), androidx.compose.ui.geometry.Offset(width * 0.2f, height * 0.5f),
+                androidx.compose.ui.geometry.Offset(width * 0.55f, height * 0.5f), androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.5f))
+        }; rule.waitForIdle()
+        rule.onNodeWithText("전체 구간 보기").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("map").performScrollTo(); rule.waitForIdle()
+        rule.waitUntil(5000) { tilePaths.isNotEmpty() }
+        Thread.sleep(300); rule.waitForIdle()
+        shot("11_analyze_map")
+        rule.onNodeWithText("격자").performScrollTo().performClick(); rule.waitForIdle()
+        assertFalse(app.store.settings.value.mapMode)
+        shot("11_analyze_grid")
+        rule.onNodeWithText("지도").performScrollTo().performClick(); rule.waitForIdle()
+        rule.onNodeWithText("전체 구간 보기").performScrollTo().performClick(); rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText("전체 구간 보기").fetchSemanticsNodes().isEmpty())
+        rule.onAllNodesWithText("분석").onFirst().performScrollTo(); rule.waitForIdle()     // 맨 위로
+        rule.onNodeWithText("기간 추세").performClick(); rule.waitForIdle()
         shot("12_analyze_trend")
         for (m in listOf("평균 페이스", "횟수", "상승고도", "일별", "월별", "달리기별", "전체")) {
             rule.onNodeWithText(m).performScrollTo().performClick(); rule.waitForIdle()
@@ -253,7 +289,29 @@ class UiTest {
         rule.onNodeWithText("내 기록").performClick(); rule.waitForIdle()
         rule.onAllNodesWithText("나").onFirst().performClick(); rule.waitForIdle()
         rule.waitUntil(5000) { rule.onAllNodesWithText("페이스").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(5000) { tilePaths.size >= 2 }
+        assertTrue(tileAgents.all { it.startsWith("RunMate/") })
+        assertTrue(tilePaths.all { Regex("/\\d+/\\d+/\\d+\\.png").matches(it) })
+        // 그래프를 탭하면 지도에 위치가 표시되고, 스와이프하면 다음 그래프로 넘어간다
+        rule.onNodeWithTag("pager").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.4f)) }; rule.waitForIdle()
+        assertTrue(rule.onAllNodesWithText("km ", substring = true).fetchSemanticsNodes().isNotEmpty())
+        Thread.sleep(300); rule.waitForIdle()
         shot("17_detail_mine")
+        rule.onNodeWithText("높이(API)").assertIsSelected()
+        rule.onNodeWithTag("pager").performTouchInput { swipeLeft() }; rule.waitForIdle()
+        rule.onNodeWithText("높이(GPS)").assertIsSelected()
+        rule.onNodeWithText("속도").performClick(); rule.waitForIdle()
+        rule.onNodeWithText("속도").assertIsSelected()
+        rule.onNodeWithTag("pager").performTouchInput {
+            pinch(androidx.compose.ui.geometry.Offset(width * 0.45f, height * 0.4f), androidx.compose.ui.geometry.Offset(width * 0.2f, height * 0.4f),
+                androidx.compose.ui.geometry.Offset(width * 0.55f, height * 0.4f), androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.4f))
+        }; rule.waitForIdle()
+        rule.onNodeWithText("속도").assertIsSelected()               // 확대 중에는 페이지가 넘어가지 않는다
+        rule.onNodeWithText("전체 구간 보기").performScrollTo().assertIsDisplayed()
+        shot("17_detail_zoomed")
+        rule.onNodeWithText("격자").performScrollTo().performClick(); rule.waitForIdle()
+        shot("17_detail_grid")
+        rule.onNodeWithText("지도").performScrollTo().performClick(); rule.waitForIdle()
         val before = app.store.metas.value.size
         RunController.notice.value = null
         rule.mainClock.advanceTimeBy(12_000); rule.waitForIdle()      // 하단 안내 메시지가 사라질 때까지
@@ -281,10 +339,12 @@ class UiTest {
         val g = app.store.groups.value[0]
         val code = app.engine.inviteFor(g)
         assertTrue(code.contains("&o="))
-        val bmp = qrBitmap(code, 300)
-        val px = IntArray(300 * 300); bmp.getPixels(px, 0, 300, 0, 0, 300, 300)
+        val bmp = qrBitmap(code)                    // 앱이 실제로 화면에 띄우는 크기
+        val sz = bmp.width
+        val px = IntArray(sz * sz); bmp.getPixels(px, 0, sz, 0, 0, sz, sz)
         val decoded = com.google.zxing.qrcode.QRCodeReader().decode(
-            com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(com.google.zxing.RGBLuminanceSource(300, 300, px)))).text
+            com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(com.google.zxing.RGBLuminanceSource(sz, sz, px))),
+            mapOf(com.google.zxing.DecodeHintType.PURE_BARCODE to true)).text
         assertEquals(code, decoded)
         assertNotNull(friend.engine.joinGroup(decoded))
         runBlocking { friend.engine.flushOutbox(); app.engine.flushOutbox(); app.engine.sync() }
@@ -311,6 +371,24 @@ class UiTest {
         app.store.saveTrack(t) { Series.meta(t, true) }
         app.engine.shareTrack("afterKick", listOf(after.id))
         runBlocking { app.engine.flushOutbox(); assertEquals(0, friend.engine.sync().newTracks.size) }
+    }
+
+    /** 실제 지도 타일 위에 경로가 제 위치에 그려지는지 눈으로 확인하기 위한 화면 (-Dlive=1) */
+    @Test fun realMapScreenshot() {
+        org.junit.Assume.assumeTrue(System.getProperty("live") == "1")
+        app.tiles = TileStore(tmpDir())
+        val me = app.store.identity.value
+        // 반포한강공원 부근(잠수교 남단)에서 강변을 따라 동쪽으로
+        val r = RunRecorder("han", 0, System.currentTimeMillis() - 3600_000)
+        for (i in 0..700) { val (la, lo) = Geo.unproject(37.5106, 126.9960, i * 3.0, i * 0.9); r.onFix(Fix(i * 1000L, la, lo, 12.0, 5f, 3f)) }
+        val t = r.finish(701_000, me.id, me.name)!!
+        app.store.saveTrack(t) { Series.meta(t, true) }
+        rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
+        rule.onAllNodesWithText("나").onFirst().performClick(); rule.waitForIdle()
+        rule.waitUntil(5000) { rule.onAllNodesWithText("페이스").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("pager").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.4f)) }
+        Thread.sleep(6000); rule.waitForIdle()
+        shot("30_real_map")
     }
 
     @Test fun mutedNotificationsStillMarkUnread() {

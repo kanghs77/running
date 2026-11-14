@@ -85,3 +85,19 @@ object Fmt {
     fun num(v: Double): String =
         if (abs(v) >= 100 || v == Math.rint(v)) String.format("%.0f", v) else if (abs(v) >= 10) String.format("%.1f", v) else String.format("%.2f", v).trimEnd('0').trimEnd('.')
 }
+
+/** 웹 메르카토르(지도 타일) 좌표. 세계 전체가 0~1. */
+object Mercator {
+    fun x(lon: Double): Double = (lon + 180.0) / 360.0
+    fun y(lat: Double): Double {
+        val r = Math.toRadians(lat.coerceIn(-85.05, 85.05))
+        return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / PI) / 2
+    }
+    /** fit: 화면 px / 세계 단위. 타일 1px이 화면에서 density*0.8px 안팎이 되도록 줌 선택 */
+    fun zoomFor(fit: Double, density: Float): Int {
+        if (!(fit > 0)) return 2
+        return Math.round(Math.log(fit / (256.0 * density * 0.8)) / Math.log(2.0)).toInt().coerceIn(2, 19)
+    }
+    /** 해당 위도에서 세계 단위 1이 몇 m인지 */
+    fun metersPerUnit(lat: Double): Double = 40_075_016.686 * cos(Math.toRadians(lat))
+}

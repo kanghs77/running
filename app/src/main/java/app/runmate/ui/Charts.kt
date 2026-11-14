@@ -1,8 +1,11 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,8 +39,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.runmate.core.Fmt
 import app.runmate.core.Geo
+import app.runmate.core.Mercator
+import app.runmate.core.Track
 import app.runmate.core.Pts
 import app.runmate.core.TrendPoint
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -57,9 +66,31 @@ private fun DrawScope.label(tm: TextMeasurer, text: String, x: Float, y: Float, 
     drawText(l, topLeft = Offset(px, py))
 }
 
+/** 그래프의 확대 구간과 선택 위치. 여러 그래프가 같은 상태를 공유할 수 있다. */
+class ChartState {
+    var from by mutableFloatStateOf(0f)
+    var to by mutableFloatStateOf(1f)
+    /** 선택한 가로축 값(예: km). 지도 위 위치 표시에 쓰인다. */
+    var cursorX by mutableStateOf<Double?>(null)
+    val zoomed: Boolean get() = to - from < 0.999f
+    fun reset() { from = 0f; to = 1f }
+
+    /** 두 손가락 확대/이동. centerFrac: 보이는 구간 안에서의 중심 위치(0~1), panFrac: 보이는 구간 대비 이동량 */
+    fun transform(zoom: Float, centerFrac: Float, panFrac: Float) {
+        val span = to - from
+        val z = if (zoom.isFinite() && zoom > 0f) zoom else 1f
+        val newSpan = (span / z).coerceIn(0.02f, 1f)
+        val anchor = from + centerFrac.coerceIn(0f, 1f) * span
+        val f = (anchor - centerFrac.coerceIn(0f, 1f) * newSpan - panFrac * newSpan).coerceIn(0f, 1f - newSpan)
+        from = f; to = f + newSpan
+    }
+}
+
 /**
  * 여러 계열을 겹쳐 그리는 선 그래프.
- * xFrom/xTo: 표시할 x 구간(전체 범위에 대한 0~1 비율). 터치/드래그하면 그 위치의 값을 아래에 보여준다.
+ * - 탭: 그 위치의 값을 선택(아래에 값 표시, state.cursorX 갱신)
+ * - 두 손가락: 가로 방향 확대/축소/이동
+ * - dragCursor=true면 한 손가락 가로 드래그로도 선택 위치를 옮긴다(스와이프로 넘기는 화면에서는 false)
  */
 @Composable
 fun LineChart(
@@ -68,20 +99,19 @@ fun LineChart(
     yUnit: String,
     modifier: Modifier = Modifier,
     height: Dp = 220.dp,
-    xFrom: Float = 0f,
-    xTo: Float = 1f,
+    state: ChartState = remember { ChartState() },
     invertY: Boolean = false,
     yFormat: (Double) -> String = { Fmt.num(it) },
     showCursorValues: Boolean = true,
+    dragCursor: Boolean = true,
 ) {
     val tm = rememberTextMeasurer()
-    var cursor by remember { mutableStateOf<Float?>(null) }   // 그래프 영역 내 0~1
     val valid = series.filter { it.pts.n > 0 }
     var gx0 = Double.MAX_VALUE; var gx1 = -Double.MAX_VALUE
     for (s in valid) { gx0 = min(gx0, s.pts.xs.first()); gx1 = max(gx1, s.pts.xs.last()) }
     if (valid.isEmpty()) { gx0 = 0.0; gx1 = 1.0 }
     if (gx1 <= gx0) gx1 = gx0 + 1e-6
-    val f0 = xFrom.coerceIn(0f, 1f); val f1 = xTo.coerceIn(0f, 1f).let { if (it - f0 < 0.01f) min(1f, f0 + 0.01f) else it }
+    val f0 = state.from.coerceIn(0f, 1f); val f1 = state.to.coerceIn(0f, 1f).let { if (it - f0 < 0.01f) min(1f, f0 + 0.01f) else it }
     val x0 = gx0 + (gx1 - gx0) * f0; val x1 = gx0 + (gx1 - gx0) * f1
     var y0 = Double.MAX_VALUE; var y1 = -Double.MAX_VALUE
     for (s in valid) for (i in 0 until s.pts.n) {
@@ -92,16 +122,38 @@ fun LineChart(
     if (y0 > y1) { y0 = 0.0; y1 = 1.0 }
     if (y1 - y0 < 1e-9) { y0 -= 0.5; y1 += 0.5 }
     val pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad
+    val range = rememberUpdatedState(x0 to x1)
 
     Column(modifier) {
         Canvas(
-            Modifier.fillMaxWidth().height(height)
-                .pointerInput(Unit) {
-                    detectTapGestures { o -> cursor = ((o.x - 44.dp.toPx()) / (size.width - 52.dp.toPx())).coerceIn(0f, 1f) }
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures { change, _ ->
-                        cursor = ((change.position.x - 44.dp.toPx()) / (size.width - 52.dp.toPx())).coerceIn(0f, 1f)
+            Modifier.fillMaxWidth().height(height).testTag("chart")
+                .pointerInput(dragCursor) {
+                    val l = 44.dp.toPx(); val rpad = 8.dp.toPx()
+                    fun frac(x: Float) = ((x - l) / (size.width - l - rpad).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                    fun pick(x: Float) { val (a, b) = range.value; state.cursorX = a + frac(x) * (b - a) }
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var multi = false; var moved = false; var dragging = false
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val pressed = ev.changes.filter { it.pressed }
+                            if (pressed.isEmpty()) break
+                            if (pressed.size >= 2) {
+                                multi = true
+                                val w = (size.width - l - rpad).coerceAtLeast(1f)
+                                state.transform(ev.calculateZoom(), frac(ev.calculateCentroid(useCurrent = false).x), ev.calculatePan().x / w)
+                                ev.changes.forEach { it.consume() }
+                            } else if (!multi) {
+                                val ch = pressed[0]
+                                val d = ch.position - down.position
+                                if (!moved && d.getDistance() > viewConfiguration.touchSlop) {
+                                    moved = true
+                                    dragging = dragCursor && abs(d.x) > abs(d.y)
+                                }
+                                if (dragging) { pick(ch.position.x); ch.consume() }
+                            } else ev.changes.forEach { it.consume() }
+                        }
+                        if (!multi && !moved) pick(down.position.x)
                     }
                 }
         ) {
@@ -126,7 +178,8 @@ fun LineChart(
             for (s in valid) {
                 val p = Path()
                 var pen = false
-                val step = max(1, s.pts.n / 1500)
+                // 보이는 구간의 점 개수에 맞춰 솎는다(확대하면 더 촘촘하게)
+                val step = max(1, ((s.pts.n * (f1 - f0)) / 1500).toInt())
                 var i = 0
                 while (i < s.pts.n) {
                     val x = s.pts.xs[i]; val y = s.pts.ys[i]
@@ -137,18 +190,18 @@ fun LineChart(
                 }
                 drawPath(p, s.color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
-            cursor?.let { c ->
-                val cx = l + c * (r - l)
-                drawLine(Color.White, Offset(cx, t), Offset(cx, b), 1.5f)
-                val xv = x0 + c * (x1 - x0)
-                for (s in valid) nearest(s.pts, xv)?.let { i ->
-                    if (s.pts.ys[i].isFinite() && s.pts.xs[i] in x0..x1) drawCircle(s.color, 4.dp.toPx(), Offset(sx(s.pts.xs[i]), sy(s.pts.ys[i])))
+            state.cursorX?.let { xv ->
+                if (xv in x0..x1) {
+                    val cx = sx(xv)
+                    drawLine(Color.White, Offset(cx, t), Offset(cx, b), 1.5f)
+                    for (s in valid) nearest(s.pts, xv)?.let { i ->
+                        if (s.pts.ys[i].isFinite() && s.pts.xs[i] in x0..x1) drawCircle(s.color, 4.dp.toPx(), Offset(sx(s.pts.xs[i]), sy(s.pts.ys[i])))
+                    }
                 }
             }
         }
-        val c = cursor
-        if (showCursorValues && c != null && valid.isNotEmpty()) {
-            val xv = x0 + c * (x1 - x0)
+        val xv = state.cursorX
+        if (showCursorValues && xv != null && valid.isNotEmpty()) {
             Text("$xUnit ${Fmt.num(xv)}", style = MaterialTheme.typography.labelSmall, color = Color.White)
             for (s in valid) {
                 val i = nearest(s.pts, xv)
@@ -156,7 +209,7 @@ fun LineChart(
                 Text("● ${s.label}: ${if (ok) yFormat(s.pts.ys[i!!]) + " " + yUnit else "-"}", color = s.color, style = MaterialTheme.typography.labelMedium)
             }
         } else if (showCursorValues && valid.isNotEmpty()) {
-            Text("그래프를 터치하면 값을 볼 수 있어요", style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
+            Text("탭: 값·위치 보기 · 두 손가락: 확대/축소", style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
         }
     }
 }
@@ -170,13 +223,14 @@ fun nearest(p: Pts, x: Double): Int? {
 }
 
 class PlotTrack(val color: Color, val xs: FloatArray, val ys: FloatArray)
+class PlotMarker(val color: Color, val x: Float, val y: Float)
 
 /**
  * 지도 없이 시작점 기준 상대좌표(m)로 경로를 그린다. 가로/세로 축척이 같고 축척 막대를 표시한다.
  * ● 시작, ■ 끝. 위쪽이 북쪽.
  */
 @Composable
-fun TrackPlot(tracks: List<PlotTrack>, modifier: Modifier = Modifier) {
+fun TrackPlot(tracks: List<PlotTrack>, modifier: Modifier = Modifier, markers: List<PlotMarker> = emptyList()) {
     val tm = rememberTextMeasurer()
     Canvas(modifier.fillMaxSize()) {
         var minX = 0f; var maxX = 0f; var minY = 0f; var maxY = 0f
@@ -210,6 +264,10 @@ fun TrackPlot(tracks: List<PlotTrack>, modifier: Modifier = Modifier) {
             val ex = px(t.xs.last()); val ey = py(t.ys.last()); val q = 4.dp.toPx()
             drawRect(Color.White, Offset(ex - q, ey - q), Size(2 * q, 2 * q))
             drawRect(t.color, Offset(ex - q / 2, ey - q / 2), Size(q, q))
+        }
+        for (m in markers) {
+            drawCircle(Color.White, 9.dp.toPx(), Offset(px(m.x), py(m.y)))
+            drawCircle(m.color, 6.dp.toPx(), Offset(px(m.x), py(m.y)))
         }
         // 축척 막대
         val by = size.height - 8.dp.toPx(); val bx = 10.dp.toPx(); val bw = bar * scale
@@ -252,6 +310,95 @@ fun BarChart(points: List<TrendPoint>, owners: List<Pair<String, Color>>, unit: 
                 drawRect(o.second, Offset(start + k * bw, sy(v)), Size(max(1f, bw - 1f), b - sy(v)))
             }
             if (i % every == 0 || i == pts.size - 1) label(tm, p.label, cx, b + 3.dp.toPx(), center = true)
+        }
+    }
+}
+
+class GeoTrack(val color: Color, val lats: DoubleArray, val lons: DoubleArray)
+class GeoMarker(val color: Color, val lat: Double, val lon: Double)
+
+/** 내 기록(위경도가 있는 기록)을 지도용 좌표로 바꾼다. 받은 기록은 위치 정보가 없어 null. */
+fun geoTrack(t: Track, color: Color, maxPts: Int = 800): GeoTrack? {
+    val lat0 = t.oLat ?: return null
+    val lon0 = t.oLon ?: return null
+    val step = max(1, t.n / maxPts)
+    val idx = (0 until t.n step step).toMutableList().also { if (it.last() != t.n - 1) it.add(t.n - 1) }
+    val lats = DoubleArray(idx.size); val lons = DoubleArray(idx.size)
+    for ((k, i) in idx.withIndex()) { val (la, lo) = Geo.unproject(lat0, lon0, t.x[i] / 10.0, t.y[i] / 10.0); lats[k] = la; lons[k] = lo }
+    return GeoTrack(color, lats, lons)
+}
+
+fun geoMarker(t: Track, i: Int, color: Color): GeoMarker? {
+    val lat0 = t.oLat ?: return null
+    val lon0 = t.oLon ?: return null
+    val (la, lo) = Geo.unproject(lat0, lon0, t.x[i] / 10.0, t.y[i] / 10.0)
+    return GeoMarker(color, la, lo)
+}
+
+/** 실제 지도(OpenStreetMap) 위에 경로를 그린다. 기록 전체가 보이도록 자동으로 맞춘다. */
+@Composable
+fun MapTrackPlot(tracks: List<GeoTrack>, modifier: Modifier = Modifier, markers: List<GeoMarker> = emptyList()) {
+    val tm = rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val tiles = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.graphics.ImageBitmap>() }
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
+        val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
+        var minX = Double.MAX_VALUE; var maxX = -Double.MAX_VALUE; var minY = Double.MAX_VALUE; var maxY = -Double.MAX_VALUE; var latSum = 0.0; var cnt = 0
+        for (t in tracks) for (i in t.lats.indices) {
+            val x = Mercator.x(t.lons[i]); val y = Mercator.y(t.lats[i])
+            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y); latSum += t.lats[i]; cnt++
+        }
+        if (cnt == 0 || w <= 0f || h <= 0f) return@BoxWithConstraints
+        val lat = latSum / cnt
+        val minSpan = 80.0 / Mercator.metersPerUnit(lat)      // 최소 80m 범위
+        val fit = min(w * 0.8 / max(maxX - minX, minSpan), h * 0.8 / max(maxY - minY, minSpan))   // 화면 px / 세계 단위
+        val z = Mercator.zoomFor(fit, density)
+        val n = 1 shl z
+        val cx = (minX + maxX) / 2; val cy = (minY + maxY) / 2
+        val tx0 = Math.floor((cx - w / 2 / fit) * n).toInt().coerceIn(0, n - 1); val tx1 = Math.floor((cx + w / 2 / fit) * n).toInt().coerceIn(0, n - 1)
+        val ty0 = Math.floor((cy - h / 2 / fit) * n).toInt().coerceIn(0, n - 1); val ty1 = Math.floor((cy + h / 2 / fit) * n).toInt().coerceIn(0, n - 1)
+        val few = (tx1 - tx0 + 1) * (ty1 - ty0 + 1) <= 48
+        androidx.compose.runtime.LaunchedEffect(z, tx0, tx1, ty0, ty1) {
+            if (few) for (x in tx0..tx1) for (y in ty0..ty1) {
+                val key = "$z/$x/$y"
+                if (key !in tiles) launch { app.tiles.get(z, x, y)?.let { tiles[key] = it } }
+            }
+        }
+        Canvas(Modifier.fillMaxSize().testTag("map")) {
+            fun sx(wx: Double) = (w / 2 + (wx - cx) * fit).toFloat()
+            fun sy(wy: Double) = (h / 2 + (wy - cy) * fit).toFloat()
+            drawRect(Color(0xFFDDE3E8))
+            if (few) for (x in tx0..tx1) for (y in ty0..ty1) {
+                val img = tiles["$z/$x/$y"] ?: continue
+                val l = sx(x.toDouble() / n); val t = sy(y.toDouble() / n); val r = sx((x + 1.0) / n); val b = sy((y + 1.0) / n)
+                drawImage(img, dstOffset = androidx.compose.ui.unit.IntOffset(Math.floor(l.toDouble()).toInt(), Math.floor(t.toDouble()).toInt()),
+                    dstSize = androidx.compose.ui.unit.IntSize(Math.ceil((r - l).toDouble()).toInt() + 1, Math.ceil((b - t).toDouble()).toInt() + 1))
+            }
+            for (t in tracks) {
+                if (t.lats.isEmpty()) continue
+                val p = Path()
+                p.moveTo(sx(Mercator.x(t.lons[0])), sy(Mercator.y(t.lats[0])))
+                for (i in 1 until t.lats.size) p.lineTo(sx(Mercator.x(t.lons[i])), sy(Mercator.y(t.lats[i])))
+                drawPath(p, Color(0xCC000000), style = Stroke(6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                drawPath(p, t.color, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                val s0 = Offset(sx(Mercator.x(t.lons[0])), sy(Mercator.y(t.lats[0])))
+                drawCircle(Color.Black, 6.dp.toPx(), s0); drawCircle(Color.White, 4.5.dp.toPx(), s0)
+                val e = Offset(sx(Mercator.x(t.lons.last())), sy(Mercator.y(t.lats.last()))); val q = 5.dp.toPx()
+                drawRect(Color.Black, Offset(e.x - q, e.y - q), Size(2 * q, 2 * q)); drawRect(Color.White, Offset(e.x - q * 0.7f, e.y - q * 0.7f), Size(q * 1.4f, q * 1.4f))
+            }
+            for (m in markers) {
+                val o = Offset(sx(Mercator.x(m.lon)), sy(Mercator.y(m.lat)))
+                drawCircle(Color.Black, 11.dp.toPx(), o); drawCircle(Color.White, 9.dp.toPx(), o); drawCircle(m.color, 6.dp.toPx(), o)
+            }
+            val mpp = Mercator.metersPerUnit(lat) / fit
+            val bar = Geo.niceFloor(w * 0.3 * mpp); val bw = (bar / mpp).toFloat()
+            val by = h - 10.dp.toPx(); val bx = 10.dp.toPx()
+            drawRect(Color(0xAAFFFFFF), Offset(bx - 4.dp.toPx(), by - 18.dp.toPx()), Size(bw + 70.dp.toPx(), 24.dp.toPx()))
+            drawLine(Color.Black, Offset(bx, by), Offset(bx + bw, by), 2.dp.toPx())
+            drawLine(Color.Black, Offset(bx, by - 4.dp.toPx()), Offset(bx, by + 1.dp.toPx()), 2.dp.toPx())
+            drawLine(Color.Black, Offset(bx + bw, by - 4.dp.toPx()), Offset(bx + bw, by + 1.dp.toPx()), 2.dp.toPx())
+            label(tm, Fmt.meters(bar), bx + bw + 6.dp.toPx(), by - 13.dp.toPx(), style = LabelStyle.copy(fontSize = 12.sp, color = Color.Black))
+            label(tm, "© OpenStreetMap", w - 4.dp.toPx(), h - 14.dp.toPx(), alignRight = true, style = LabelStyle.copy(fontSize = 9.sp, color = Color(0xFF333333)))
         }
     }
 }

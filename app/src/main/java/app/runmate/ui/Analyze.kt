@@ -1,6 +1,7 @@
 package app.runmate.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +25,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -79,8 +79,7 @@ private fun CompareView(selected: SnapshotStateList<String>) {
     var xAxis by rememberSaveable { mutableStateOf(XAxis.DISTANCE) }
     var view by rememberSaveable { mutableStateOf("PACE") }      // Metric 이름 또는 "ROUTE"
     var smooth by rememberSaveable { mutableFloatStateOf(30f) }
-    var from by rememberSaveable { mutableFloatStateOf(0f) }
-    var to by rememberSaveable { mutableFloatStateOf(1f) }
+    val chart = remember { ChartState() }
 
     val ids = selected.filter { id -> metas.any { it.id == id } }
     val tracks by produceState<Map<String, Track>>(emptyMap(), ids.joinToString(","), metas.filter { it.id in ids }.joinToString(",") { it.eleSrc }) {
@@ -104,37 +103,51 @@ private fun CompareView(selected: SnapshotStateList<String>) {
     Button(onClick = { picker = true }, modifier = Modifier.testTag("pick")) { Text("기록 선택") }
 
     if (ids.isNotEmpty()) {
+        val settings by app.store.settings.collectAsStateWithLifecycle()
+        val metric = runCatching { Metric.valueOf(view) }.getOrDefault(Metric.PACE)
         SectionTitle("세로축")
-        Chips(Metric.values().map { it.name to it.label } + ("ROUTE" to "경로 겹치기"), view) { view = it }
-        if (view == "ROUTE") {
-            Surface(Modifier.fillMaxWidth().height(320.dp).padding(top = 8.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
-                TrackPlot(ids.mapIndexedNotNull { i, id ->
-                    tracks[id]?.let { t -> PlotTrack(Palette[i % Palette.size], FloatArray(t.n) { t.x[it] / 10f }, FloatArray(t.n) { t.y[it] / 10f }) }
-                })
-            }
-            Text("각 기록의 시작점을 원점(0,0)에 맞춰 겹쳐 그립니다.", color = Dim, style = MaterialTheme.typography.labelSmall)
-        } else {
-            val metric = Metric.valueOf(view)
-            SectionTitle("가로축")
-            Chips(XAxis.values().map { it to it.label }, xAxis) { xAxis = it }
-            val series = ids.mapIndexedNotNull { i, id ->
-                val t = tracks[id] ?: return@mapIndexedNotNull null
-                if (!Series.has(t, metric)) return@mapIndexedNotNull null
-                val m = metas.first { it.id == id }
-                ChartSeries("${if (m.mine) "나" else m.ownerName} ${fmtDay(m.startMs)}", Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
-            }
-            Spacer(Modifier.height(8.dp))
-            if (series.isEmpty()) Text(if (tracks.isEmpty()) "불러오는 중…" else "선택한 기록에 이 데이터가 없어요. (API 고도는 인터넷 연결 후 받아집니다)", color = Dim)
-            else LineChart(
-                series, xAxis.unit, metric.unit, height = 260.dp, xFrom = from, xTo = to,
-                invertY = metric == Metric.PACE, yFormat = if (metric == Metric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) },
-            )
-            if (series.size < ids.size && series.isNotEmpty()) Text("일부 기록에는 이 데이터가 없어 제외됐어요.", color = Dim, style = MaterialTheme.typography.labelSmall)
-            SectionTitle("구간 확대 (가로축 범위)")
-            RangeSlider(value = from..to, onValueChange = { from = it.start; to = it.endInclusive }, valueRange = 0f..1f)
-            SectionTitle("부드럽게: ${smooth.toInt()}초 평균")
-            Slider(value = smooth, onValueChange = { smooth = it }, valueRange = 0f..180f)
+        Chips(Metric.values().map { it.name to it.label }, metric.name) { view = it }
+        SectionTitle("가로축")
+        Chips(XAxis.values().map { it to it.label }, xAxis) { xAxis = it; chart.reset(); chart.cursorX = null }
+        val series = ids.mapIndexedNotNull { i, id ->
+            val t = tracks[id] ?: return@mapIndexedNotNull null
+            if (!Series.has(t, metric)) return@mapIndexedNotNull null
+            val m = metas.first { it.id == id }
+            ChartSeries("${if (m.mine) "나" else m.ownerName} ${fmtDay(m.startMs)}", Palette[i % Palette.size], Series.of(t, xAxis, metric, smooth.toDouble()))
         }
+        Spacer(Modifier.height(8.dp))
+        if (series.isEmpty()) Text(if (tracks.isEmpty()) "불러오는 중…" else "선택한 기록에 이 데이터가 없어요. (API 고도는 인터넷 연결 후 받아집니다)", color = Dim)
+        else LineChart(
+            series, xAxis.unit, metric.unit, height = 260.dp, state = chart,
+            invertY = metric == Metric.PACE, yFormat = if (metric == Metric.PACE) { v -> Fmt.paceMin(v) } else { v -> Fmt.num(v) },
+        )
+        if (series.size < ids.size && series.isNotEmpty()) Text("일부 기록에는 이 데이터가 없어 제외됐어요.", color = Dim, style = MaterialTheme.typography.labelSmall)
+        if (chart.zoomed) TextButton(onClick = { chart.reset() }) { Text("전체 구간 보기") }
+
+        // 그래프에서 고른 지점이 경로의 어디인지 표시
+        val axisPts = remember(tracks, xAxis) { tracks.mapValues { (_, t) -> Series.of(t, xAxis, Metric.DIST, 0.0) } }
+        fun markIndex(id: String): Int? = chart.cursorX?.let { xv -> axisPts[id]?.let { p -> if (xv <= p.xs.last() + 1e-9) nearest(p, xv) else null } }
+        val anyGeo = ids.any { tracks[it]?.oLat != null }
+        SectionTitle("위치")
+        if (anyGeo) Chips(listOf(true to "지도", false to "격자"), settings.mapMode) { v -> app.store.updateSettings { it.copy(mapMode = v) } }
+        Surface(Modifier.fillMaxWidth().height(300.dp).padding(top = 4.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
+            if (anyGeo && settings.mapMode) {
+                val geos = remember(tracks, ids.joinToString(",")) { ids.mapIndexedNotNull { i, id -> tracks[id]?.let { geoTrack(it, Palette[i % Palette.size]) } } }
+                MapTrackPlot(geos, markers = ids.mapIndexedNotNull { i, id -> val t = tracks[id]; val k = markIndex(id); if (t != null && k != null) geoMarker(t, k, Palette[i % Palette.size]) else null })
+            } else {
+                val plots = remember(tracks, ids.joinToString(",")) {
+                    ids.mapIndexedNotNull { i, id -> tracks[id]?.let { t -> PlotTrack(Palette[i % Palette.size], FloatArray(t.n) { t.x[it] / 10f }, FloatArray(t.n) { t.y[it] / 10f }) } }
+                }
+                TrackPlot(plots, markers = ids.mapIndexedNotNull { i, id -> val t = tracks[id]; val k = markIndex(id); if (t != null && k != null) PlotMarker(Palette[i % Palette.size], t.x[k] / 10f, t.y[k] / 10f) else null })
+            }
+        }
+        Text(
+            if (anyGeo && settings.mapMode) "지도에는 내 기록만 표시됩니다. 그룹원 기록은 실제 위치가 공유되지 않아요."
+            else "각 기록의 시작점을 원점(0,0)에 맞춰 겹쳐 그립니다.",
+            color = Dim, style = MaterialTheme.typography.labelSmall,
+        )
+        SectionTitle("부드럽게: ${smooth.toInt()}초 평균")
+        Slider(value = smooth, onValueChange = { smooth = it }, valueRange = 0f..180f)
     }
 
     if (picker) AlertDialog(
@@ -145,8 +158,10 @@ private fun CompareView(selected: SnapshotStateList<String>) {
             else LazyColumn(Modifier.heightIn(max = 420.dp)) {
                 items(metas, key = { it.id }) { m ->
                     val on = m.id in selected
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = on, enabled = on || selected.size < MAX_COMPARE, onCheckedChange = { if (it) { if (m.id !in selected) selected.add(m.id) } else selected.remove(m.id) })
+                    val can = on || selected.size < MAX_COMPARE
+                    fun toggle() { if (on) selected.remove(m.id) else if (can && m.id !in selected) selected.add(m.id) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable(enabled = can) { toggle() }) {
+                        Checkbox(checked = on, enabled = can, onCheckedChange = { toggle() })
                         Column {
                             Text("${if (m.mine) "나" else m.ownerName} · ${fmtDate(m.startMs)}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${Fmt.km(m.distanceM)} km · ${Fmt.duration(m.durationS)} · ${Fmt.pace(m.avgSpeed)}/km", color = Dim, style = MaterialTheme.typography.bodySmall)
