@@ -175,6 +175,22 @@ class RecorderTest {
         assertTrue(r.size in 25..80)   // 10초마다 시간축 점
     }
 
+    @Test fun gpsSpeedZeroMeansStanding() {
+        // 달리다 멈춘 뒤, GPS 속도는 0인데 위치만 3~5m씩 튀는 상황
+        val r = RunRecorder("a", 0, 0)
+        for (i in 0..100) r.onFix(fixAt(i * 1000L, i * 3.0, speed = 3f))
+        val rnd = java.util.Random(5)
+        for (i in 101..700) r.onFix(fixAt(i * 1000L, 300.0 + rnd.nextGaussian() * 3, rnd.nextGaussian() * 3, acc = 6f, speed = 0f))
+        assertEquals(300.0, r.distanceM, 12.0)
+        // 다시 달리면 정상적으로 이어진다
+        for (i in 701..800) r.onFix(fixAt(i * 1000L, 300.0 + (i - 700) * 3.0, speed = 3f))
+        assertEquals(600.0, r.distanceM, 20.0)
+        // 속도 정보가 없는 기기에서는 기존 방식(최소 이동거리)만 적용
+        val r2 = RunRecorder("b", 0, 0)
+        for (i in 0..100) r2.onFix(fixAt(i * 1000L, i * 3.0, speed = null))
+        assertEquals(300.0, r2.distanceM, 3.0)
+    }
+
     @Test fun tooShortIsNull() {
         val r = RunRecorder("a", 0, 0)
         assertNull(r.finish(1000, "me", "나"))
@@ -829,6 +845,48 @@ class MapMathTest {
         assertEquals(listOf("11/14"), Trend.compute(metas, Bucket.DAY, TrendMetric.DISTANCE, z).map { it.label })
         assertEquals(11.0, Trend.compute(metas, Bucket.DAY, TrendMetric.DISTANCE, z)[0].values["a"]!!, 1e-9)
         assertEquals(setOf("DISTANCE", "TIME", "PACE", "RUNS"), TrendMetric.values().map { it.name }.toSet())   // 상승고도 항목 없음
+    }
+
+    @Test fun chartYAxisState() {
+        val c = app.runmate.ui.ChartState()
+        c.transformY(0.5f, 0.5f, 0f)                    // 모으기: 세로 범위가 2배로 넓어져 그래프가 납작해진다
+        assertEquals(2f, c.ySpan, 1e-4f); assertEquals(0.5f, c.yCenter, 1e-4f); assertTrue(c.zoomed)
+        assertEquals(0f, c.from, 0f); assertEquals(1f, c.to, 0f)          // 가로는 그대로
+        c.reset(); c.transformY(4f, 0f, 0f)             // 맨 아래를 기준으로 4배 확대 -> 아래 1/4만 보임
+        assertEquals(0.25f, c.ySpan, 1e-4f); assertEquals(0.125f, c.yCenter, 1e-4f)
+        c.transformY(1e9f, 0.5f, 0f); assertTrue(c.ySpan >= 0.05f)
+        c.transformY(1e-9f, 0.5f, 0f); assertTrue(c.ySpan <= 10f)
+        c.transformY(Float.NaN, 0.5f, 100f); assertTrue(c.yCenter in -5f..6f)
+        c.reset(); assertFalse(c.zoomed)
+    }
+
+    @Test fun trimAndIdleTail() {
+        // 5분 달리고 10분 멈춤(GPS 떨림 포함)
+        val r = RunRecorder("x", 0, 0)
+        for (i in 0..300) r.onFix(fixAt(i * 1000L, i * 3.0))
+        val rnd = java.util.Random(7)
+        for (i in 301..900) r.onFix(fixAt(i * 1000L, 900.0 + rnd.nextGaussian(), rnd.nextGaussian(), acc = 8f))
+        val t = r.finish(901_000, "me", "나")!!
+        val k = Series.idleTailStart(t)!!
+        assertTrue("k time=${t.t[k] / 10}", t.t[k] / 10 in 293..312)
+        val cut = t.trimmed(k)!!
+        assertEquals(k + 1, cut.n); assertEquals(t.t[k] / 10, cut.durationS); assertEquals(900.0, cut.distanceM, 30.0)
+        assertEquals(t.id, cut.id); assertEquals(t.oLat, cut.oLat); assertArrayEquals(t.x.copyOf(k + 1), cut.x)
+        assertNotNull(Track.fromDto(cut.toDto()))
+        // 멈춤 없이 끝난 기록, 잠깐(1분) 멈춘 기록은 자동 제안 없음
+        assertNull(Series.idleTailStart(makeTrack("a", "o", "n", 0)))
+        val r2 = RunRecorder("y", 0, 0)
+        for (i in 0..300) r2.onFix(fixAt(i * 1000L, i * 3.0)); for (i in 301..360) r2.onFix(fixAt(i * 1000L, 900.0))
+        assertNull(Series.idleTailStart(r2.finish(361_000, "me", "나")!!))
+        // 경계
+        assertNull(t.trimmed(0)); assertNull(t.trimmed(t.n)); assertSame(t, t.trimmed(t.n - 1))
+        assertEquals(2, t.trimmed(1)!!.n)
+        val withEle = t.copy(ele = IntArray(t.n) { it }, eleSrc = "srtm30m").trimmed(10)!!
+        assertEquals(11, withEle.ele!!.size)
+        // 그래프에서 고른 거리 -> 그 거리에 처음 도달한 점 (멈춘 구간에서는 가장 앞 점)
+        assertEquals(0, Series.firstIndexAtDistance(t, 0.0))
+        val at = Series.firstIndexAtDistance(t, 450.0); assertEquals(150.0, t.t[at] / 10.0, 3.0)
+        assertEquals(t.n - 1, Series.firstIndexAtDistance(t, 1e9))
     }
 
     @Test fun chartZoomState() {

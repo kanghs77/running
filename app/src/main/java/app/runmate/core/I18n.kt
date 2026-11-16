@@ -70,6 +70,7 @@ object I18n {
         part3()
         part4()
         part5()
+        part6()
     }
 
     private fun part0() {
@@ -91,8 +92,12 @@ object I18n {
             "要退出群组“{0}”吗？已收到的记录会保留，但不再与该群组互相分享记录。", "グループ「{0}」を退出しますか？受け取った記録は残りますが、このグループとは記録をやり取りしなくなります。", "¿Salir del grupo '{0}'? Las carreras ya recibidas se conservan, pero dejarás de intercambiar carreras con este grupo.", "Sair do grupo '{0}'? As corridas já recebidas permanecem, mas você deixará de trocar corridas com este grupo.", "Gruppe '{0}' verlassen? Bereits empfangene Läufe bleiben, aber du tauschst keine Läufe mehr mit dieser Gruppe aus.", "Quitter le groupe '{0}' ? Les courses déjà reçues sont conservées, mais vous n'échangerez plus de courses avec ce groupe.", "Выйти из группы «{0}»? Полученные пробежки останутся, но обмен пробежками с этой группой прекратится.", "Keluar dari grup '{0}'? Lari yang sudah diterima tetap ada, tetapi Anda tidak lagi bertukar lari dengan grup ini.")
         add("On the route view, drag with one finger to move and twist with two fingers to rotate. (rotation {0}°)",
             "在路线图上，单指拖动可移动，双指旋转可转动。（旋转 {0}°）", "ルート図の上で、1本指でドラッグすると移動、2本指で回すと回転します。（回転 {0}°）", "En la vista de ruta, arrastra con un dedo para mover y gira con dos dedos para rotar. (rotación {0}°)", "Na vista da rota, arraste com um dedo para mover e gire com dois dedos para rotacionar. (rotação {0}°)", "In der Streckenansicht mit einem Finger ziehen zum Verschieben, mit zwei Fingern drehen zum Rotieren. (Drehung {0}°)", "Sur la vue du parcours, faites glisser avec un doigt pour déplacer et tournez avec deux doigts pour pivoter. (rotation {0}°)", "На схеме маршрута перетаскивайте одним пальцем для сдвига и вращайте двумя пальцами для поворота. (поворот {0}°)", "Di tampilan rute, seret dengan satu jari untuk menggeser dan putar dengan dua jari untuk memutar. (rotasi {0}°)")
+        add("Trimming can't be undone. Runs already sent to groups won't change on your group members' phones.",
+            "裁剪后无法恢复。已发送到群组的记录在成员手机上不会改变。", "切り取った部分は元に戻せません。すでにグループに送った記録は、メンバー側では変わりません。", "El recorte no se puede deshacer. Las carreras ya enviadas a grupos no cambiarán en los teléfonos de los miembros.", "O corte não pode ser desfeito. As corridas já enviadas aos grupos não mudam nos celulares dos membros.", "Das Abschneiden kann nicht rückgängig gemacht werden. Bereits an Gruppen gesendete Läufe ändern sich auf den Telefonen der Mitglieder nicht.", "La coupe est irréversible. Les courses déjà envoyées aux groupes ne changeront pas sur les téléphones des membres.", "Обрезку нельзя отменить. Уже отправленные в группы пробежки на телефонах участников не изменятся.", "Pemotongan tidak dapat dibatalkan. Lari yang sudah dikirim ke grup tidak berubah di ponsel anggota.")
         add("All runs are overlaid with their start points placed at the real start of your first run.",
             "所有记录的起点都对齐到你第一条记录的实际出发位置后叠加绘制。", "すべての記録のスタート地点を、最初の自分の記録の実際の出発位置に合わせて重ねて描きます。", "Todas las carreras se superponen con su punto de salida colocado en la salida real de tu primera carrera.", "Todas as corridas são sobrepostas com o ponto de partida colocado na partida real da sua primeira corrida.", "Alle Läufe werden überlagert, wobei ihre Startpunkte am echten Start deines ersten Laufs liegen.", "Toutes les courses sont superposées, leur point de départ étant placé au départ réel de votre première course.", "Все пробежки наложены так, что их точки старта совмещены с реальным стартом вашей первой пробежки.", "Semua lari ditumpuk dengan titik awal ditempatkan di titik awal sebenarnya dari lari pertama Anda.")
+        add("Tap or drag: value & location · Two fingers sideways: zoom range · up-down: adjust Y axis",
+            "点按或拖动：数值和位置 · 双指横向：缩放区间 · 纵向：调整纵轴", "タップ・ドラッグ: 値と位置 · 2本指を横に: 区間を拡大 · 縦に: 縦軸を調整", "Toca o arrastra: valor y ubicación · Dos dedos en horizontal: zoom del tramo · en vertical: ajustar eje Y", "Toque ou arraste: valor e local · Dois dedos na horizontal: zoom do trecho · na vertical: ajustar eixo Y", "Tippen oder ziehen: Wert & Position · Zwei Finger quer: Bereich zoomen · hoch/runter: Y-Achse anpassen", "Toucher ou glisser : valeur et position · Deux doigts à l’horizontale : zoom de la plage · à la verticale : régler l’axe Y", "Касание или перетаскивание: значение и место · Два пальца по горизонтали: масштаб диапазона · по вертикали: ось Y", "Ketuk atau seret: nilai & lokasi · Dua jari mendatar: zoom rentang · tegak: atur sumbu Y")
         add("Delete this run from your phone? Runs already sent stay on your group members' phones.",
             "要从手机中删除这条记录吗？已发送给群组成员的记录会留在他们的手机上。", "この記録を端末から削除しますか？すでにグループメンバーに送った記録はメンバーの端末に残ります。", "¿Eliminar esta carrera de tu teléfono? Las carreras ya enviadas quedan en los teléfonos de los miembros del grupo.", "Excluir esta corrida do seu celular? As corridas já enviadas ficam nos celulares dos membros do grupo.", "Diesen Lauf von deinem Telefon löschen? Bereits gesendete Läufe bleiben auf den Telefonen der Gruppenmitglieder.", "Supprimer cette course de votre téléphone ? Les courses déjà envoyées restent sur les téléphones des membres du groupe.", "Удалить эту пробежку с телефона? Уже отправленные пробежки останутся на телефонах участников группы.", "Hapus lari ini dari ponsel Anda? Lari yang sudah dikirim tetap ada di ponsel anggota grup.")
         add("The selected runs don't have this data. (API elevation is fetched once you're online)",
@@ -107,12 +112,16 @@ object I18n {
             "合计包含你的所有记录以及群组成员发送给你的记录。", "自分のすべての記録と、グループメンバーから届いた記録を合算します。", "Los totales incluyen todas tus carreras y las que te enviaron los miembros de tus grupos.", "Os totais incluem todas as suas corridas e as que os membros dos seus grupos enviaram a você.", "Die Summen umfassen alle deine Läufe und die Läufe, die dir Gruppenmitglieder gesendet haben.", "Les totaux incluent toutes vos courses et celles que les membres de vos groupes vous ont envoyées.", "В итогах учитываются все ваши пробежки и пробежки, присланные участниками групп.", "Total mencakup semua lari Anda dan lari yang dikirim anggota grup kepada Anda.")
         add("Pick your runs or your group members' runs to overlay and compare.",
             "选择自己或群组成员的记录，叠加对比。", "自分やグループメンバーの記録を選んで重ねて比較しましょう。", "Elige tus carreras o las de tu grupo para superponerlas y compararlas.", "Escolha suas corridas ou as do seu grupo para sobrepor e comparar.", "Wähle eigene Läufe oder die deiner Gruppenmitglieder zum Überlagern und Vergleichen.", "Choisissez vos courses ou celles de votre groupe pour les superposer et les comparer.", "Выберите свои пробежки или пробежки участников группы, чтобы наложить и сравнить.", "Pilih lari Anda atau anggota grup untuk ditumpuk dan dibandingkan.")
+        add("Tap the chart to pick a point; everything after it can be removed.",
+            "点按图表选择裁剪位置后，可以移除其后的部分。", "グラフをタップして切る地点を選ぶと、それ以降を切り取れます。", "Toca la gráfica para elegir un punto; se puede quitar todo lo posterior.", "Toque no gráfico para escolher um ponto; tudo o que vem depois pode ser removido.", "Tippe im Diagramm auf einen Punkt; alles danach kann entfernt werden.", "Touchez le graphique pour choisir un point ; tout ce qui suit pourra être supprimé.", "Нажмите на график, чтобы выбрать точку; всё после неё можно убрать.", "Ketuk grafik untuk memilih titik; semua setelahnya dapat dihapus.")
         add("Allow RunMate notifications in your phone settings to get alerts.",
             "需在手机设置中允许 RunMate 通知才会提醒。", "通知を受け取るには、端末の設定でRunMateの通知を許可してください。", "Permite las notificaciones de RunMate en los ajustes del teléfono para recibir avisos.", "Permita as notificações do RunMate nas configurações do celular para receber alertas.", "Erlaube RunMate-Benachrichtigungen in den Telefoneinstellungen, um Hinweise zu erhalten.", "Autorisez les notifications RunMate dans les réglages du téléphone pour recevoir des alertes.", "Разрешите уведомления RunMate в настройках телефона, чтобы получать оповещения.", "Izinkan notifikasi RunMate di setelan ponsel untuk menerima pemberitahuan.")
         add("Date,Name,Mine,Distance(km),Time,Avg pace(min/km),Ascent(m),File",
             "日期,姓名,我的记录,距离(km),时间,平均配速(分/km),爬升(m),文件", "日付,名前,自分の記録,距離(km),時間,平均ペース(分/km),上昇(m),ファイル", "Fecha,Nombre,Mía,Distancia(km),Tiempo,Ritmo medio(min/km),Ascenso(m),Archivo", "Data,Nome,Minha,Distância(km),Tempo,Ritmo médio(min/km),Subida(m),Arquivo", "Datum,Name,Eigener,Distanz(km),Zeit,Ø Pace(Min/km),Anstieg(m),Datei", "Date,Nom,Moi,Distance(km),Temps,Allure moy.(min/km),Dénivelé(m),Fichier", "Дата,Имя,Моя,Дистанция(км),Время,Средний темп(мин/км),Набор высоты(м),Файл", "Tanggal,Nama,Milik saya,Jarak(km),Waktu,Pace rata-rata(mnt/km),Tanjakan(m),Berkas")
         add("Your run is saved. Add friends on the Groups tab to share runs.",
             "记录已保存。在“群组”标签页添加朋友后即可发送记录。", "記録を保存しました。「グループ」タブで友だちを追加すると記録を送れます。", "Tu carrera está guardada. Añade amigos en la pestaña Grupos para compartir carreras.", "Sua corrida foi salva. Adicione amigos na aba Grupos para compartilhar corridas.", "Dein Lauf ist gespeichert. Füge im Tab Gruppen Freunde hinzu, um Läufe zu teilen.", "Votre course est enregistrée. Ajoutez des amis dans l'onglet Groupes pour partager vos courses.", "Пробежка сохранена. Добавьте друзей на вкладке «Группы», чтобы делиться пробежками.", "Lari Anda tersimpan. Tambahkan teman di tab Grup untuk berbagi lari.")
+        add("Remove everything after the point picked on the chart ({0} km, {1})",
+            "移除图表所选位置之后的部分（{0} km，{1}）", "グラフで選んだ地点より後を削除（{0} km、{1}）", "Quitar todo lo posterior al punto elegido en la gráfica ({0} km, {1})", "Remover tudo após o ponto escolhido no gráfico ({0} km, {1})", "Alles nach dem im Diagramm gewählten Punkt entfernen ({0} km, {1})", "Supprimer tout ce qui suit le point choisi sur le graphique ({0} km, {1})", "Убрать всё после точки, выбранной на графике ({0} км, {1})", "Hapus semua setelah titik yang dipilih di grafik ({0} km, {1})")
         add("Can't start recording. Please check the location permission.",
             "无法开始记录。请检查位置权限。", "記録を開始できません。位置情報の権限を確認してください。", "No se puede iniciar la grabación. Revisa el permiso de ubicación.", "Não foi possível iniciar a gravação. Verifique a permissão de localização.", "Aufzeichnung kann nicht gestartet werden. Bitte Standortberechtigung prüfen.", "Impossible de démarrer l'enregistrement. Vérifiez l'autorisation de localisation.", "Не удалось начать запись. Проверьте разрешение на геолокацию.", "Tidak dapat mulai merekam. Periksa izin lokasi.")
         add("Runs are overlaid with each start point at the origin (0,0).",
@@ -123,26 +132,37 @@ object I18n {
             "无法连接。请检查网络连接。{0}", "接続できませんでした。インターネット接続を確認してください。{0}", "No se pudo conectar. Revisa tu conexión a internet. {0}", "Não foi possível conectar. Verifique sua conexão com a internet. {0}", "Keine Verbindung. Bitte Internetverbindung prüfen. {0}", "Connexion impossible. Vérifiez votre connexion internet. {0}", "Не удалось подключиться. Проверьте интернет-соединение. {0}", "Tidak dapat terhubung. Periksa koneksi internet Anda. {0}")
         add("Couldn't reach the elevation API. Please try again later.",
             "无法连接海拔 API。请稍后重试。", "標高APIに接続できませんでした。しばらくしてからもう一度お試しください。", "No se pudo contactar con la API de altitud. Inténtalo más tarde.", "Não foi possível acessar a API de altitude. Tente novamente mais tarde.", "Die Höhen-API ist nicht erreichbar. Bitte später erneut versuchen.", "Impossible de joindre l'API d'altitude. Réessayez plus tard.", "Не удалось связаться с API высот. Повторите попытку позже.", "Tidak dapat menjangkau API elevasi. Coba lagi nanti.")
+        add("Badge criteria are being prepared and will be added soon.",
+            "徽章标准正在准备中，即将添加。", "バッジの基準は準備中です。近日追加されます。", "Los criterios de las insignias se están preparando y se añadirán pronto.", "Os critérios das medalhas estão sendo preparados e serão adicionados em breve.", "Die Kriterien für Abzeichen werden vorbereitet und bald ergänzt.", "Les critères des badges sont en préparation et seront ajoutés bientôt.", "Критерии значков готовятся и скоро появятся.", "Kriteria lencana sedang disiapkan dan akan segera ditambahkan.")
         add("Recording continues with the screen off or in other apps",
             "关闭屏幕或使用其他应用时仍会继续记录", "画面を消しても他のアプリを使っても記録は続きます", "La grabación continúa con la pantalla apagada o en otras apps", "A gravação continua com a tela desligada ou em outros apps", "Die Aufzeichnung läuft bei ausgeschaltetem Bildschirm oder in anderen Apps weiter", "L'enregistrement continue écran éteint ou dans d'autres applis", "Запись продолжается при выключенном экране и в других приложениях", "Perekaman berlanjut saat layar mati atau di aplikasi lain")
         add("Couldn't save the run. Please check your storage space.",
             "保存记录失败。请检查存储空间。", "記録を保存できませんでした。空き容量を確認してください。", "No se pudo guardar la carrera. Revisa el espacio de almacenamiento.", "Não foi possível salvar a corrida. Verifique o espaço de armazenamento.", "Der Lauf konnte nicht gespeichert werden. Bitte Speicherplatz prüfen.", "Impossible d'enregistrer la course. Vérifiez l'espace de stockage.", "Не удалось сохранить пробежку. Проверьте свободное место.", "Gagal menyimpan lari. Periksa ruang penyimpanan.")
         add("Turn on your phone's location, then tap Start again.",
             "请打开手机的位置功能后，再次点击“开始”。", "端末の位置情報をオンにしてから、もう一度スタートを押してください。", "Activa la ubicación del teléfono y vuelve a tocar Iniciar.", "Ative a localização do celular e toque em Iniciar novamente.", "Schalte den Standort deines Telefons ein und tippe erneut auf Start.", "Activez la localisation du téléphone, puis touchez à nouveau Démarrer.", "Включите геолокацию на телефоне и снова нажмите «Старт».", "Nyalakan lokasi ponsel, lalu ketuk Mulai lagi.")
+        add("Earned when two or more of the above are outstanding",
+            "以上徽章中有两项以上成绩非常出色时获得", "上のバッジのうち2つ以上で記録が非常に良いともらえるバッジ", "Se consigue cuando dos o más de las anteriores son sobresalientes", "Conquistada quando duas ou mais das anteriores são excelentes", "Wenn zwei oder mehr der obigen Bereiche herausragend sind", "Obtenu lorsque deux des catégories ci-dessus ou plus sont remarquables", "Выдаётся, когда два или более показателей выше — выдающиеся", "Diperoleh bila dua atau lebih kategori di atas sangat menonjol")
         add("Searching for GPS… move to where the sky is visible",
             "正在搜索 GPS 信号…请移动到能看到天空的地方", "GPS信号を探しています… 空が見える場所へ移動してください", "Buscando GPS… ve a un lugar con cielo despejado", "Procurando GPS… vá para um local com céu aberto", "GPS wird gesucht… geh an einen Ort mit freier Sicht zum Himmel", "Recherche du GPS… placez-vous à ciel ouvert", "Поиск GPS… выйдите на открытое место", "Mencari GPS… pindah ke tempat dengan langit terbuka")
         add("Phones set to an unsupported language show English.",
             "手机语言不受支持时显示英文。", "対応していない言語の端末では英語で表示されます。", "Los teléfonos con un idioma no compatible muestran inglés.", "Celulares em um idioma não compatível exibem inglês.", "Bei nicht unterstützter Telefonsprache wird Englisch angezeigt.", "Les téléphones dans une langue non prise en charge affichent l’anglais.", "Если язык телефона не поддерживается, используется английский.", "Ponsel dengan bahasa yang tidak didukung menampilkan bahasa Inggris.")
         add("Recovered a run that was interrupted unexpectedly.",
             "已恢复意外中断的跑步记录。", "予期せず中断されたランの記録を復元しました。", "Se recuperó una carrera que se interrumpió inesperadamente.", "Uma corrida interrompida inesperadamente foi recuperada.", "Ein unerwartet unterbrochener Lauf wurde wiederhergestellt.", "Une course interrompue de façon inattendue a été récupérée.", "Восстановлена пробежка, прерванная из-за сбоя.", "Lari yang terhenti tiba-tiba telah dipulihkan.")
+        add("Earned by covering a long distance in a single run",
+            "单次跑出较长距离即可获得", "1回で長い距離を走るともらえるバッジ", "Se consigue recorriendo una distancia larga en una sola carrera", "Conquistada ao percorrer uma longa distância em uma única corrida", "Für eine lange Distanz in einem einzelnen Lauf", "Obtenu en parcourant une longue distance en une seule course", "Выдаётся за большую дистанцию за одну пробежку", "Diperoleh dengan menempuh jarak jauh dalam satu lari")
         add("Can't open the camera. Please use 'Join by code'.",
             "无法打开相机。请使用“用邀请码加入”。", "カメラを開けません。「コードで参加」をご利用ください。", "No se puede abrir la cámara. Usa 'Unirse con código'.", "Não foi possível abrir a câmera. Use 'Entrar com código'.", "Kamera kann nicht geöffnet werden. Bitte 'Per Code beitreten' nutzen.", "Impossible d'ouvrir l'appareil photo. Utilisez « Rejoindre par code ».", "Не удаётся открыть камеру. Используйте «Вступить по коду».", "Tidak dapat membuka kamera. Gunakan 'Gabung dengan kode'.")
         add("No alerts; new runs show up when you open the app",
             "不提醒；打开应用时显示新记录", "通知なし。アプリを開くと新しい記録が表示されます", "Sin avisos; las carreras nuevas aparecen al abrir la app", "Sem alertas; as novas corridas aparecem ao abrir o app", "Keine Hinweise; neue Läufe erscheinen beim Öffnen der App", "Pas d'alertes ; les nouvelles courses s'affichent à l'ouverture de l'appli", "Без оповещений; новые пробежки видны при открытии приложения", "Tanpa pemberitahuan; lari baru muncul saat aplikasi dibuka")
+    }
+
+    private fun part1() {
         add("{0} waiting to send (sent automatically when online)",
             "{0} 条待发送（联网后自动发送）", "送信待ち {0}件（接続時に自動送信）", "{0} pendientes de envío (se envían solas al conectarse)", "{0} aguardando envio (enviadas automaticamente ao conectar)", "{0} warten auf Versand (werden online automatisch gesendet)", "{0} en attente d'envoi (envoi automatique une fois en ligne)", "Ожидают отправки: {0} (отправятся автоматически при подключении)", "{0} menunggu dikirim (otomatis terkirim saat online)")
         add("Tap or drag: value & location · Two fingers: zoom",
             "点按或拖动：查看数值和位置 · 双指：缩放", "タップ・ドラッグ: 値と位置 · 2本指: 拡大/縮小", "Toca o arrastra: valor y ubicación · Dos dedos: zoom", "Toque ou arraste: valor e local · Dois dedos: zoom", "Tippen oder ziehen: Wert & Position · Zwei Finger: Zoom", "Toucher ou glisser : valeur et position · Deux doigts : zoom", "Касание или перетаскивание: значение и место · Два пальца: масштаб", "Ketuk atau seret: nilai & lokasi · Dua jari: zoom")
+        add("Earned by running for a long time in a single run",
+            "单次跑步时间较长即可获得", "1回で長い時間走るともらえるバッジ", "Se consigue corriendo durante mucho tiempo en una sola carrera", "Conquistada ao correr por muito tempo em uma única corrida", "Für eine lange Laufzeit in einem einzelnen Lauf", "Obtenu en courant longtemps en une seule course", "Выдаётся за долгую пробежку", "Diperoleh dengan berlari lama dalam satu lari")
         add("Checks about every 15 minutes and notifies you",
             "约每 15 分钟检查一次并提醒", "約15分おきに確認してお知らせします", "Comprueba cada 15 minutos aprox. y te avisa", "Verifica a cada 15 minutos aprox. e avisa você", "Prüft etwa alle 15 Minuten und benachrichtigt dich", "Vérifie environ toutes les 15 minutes et vous prévient", "Проверка примерно раз в 15 минут с уведомлением", "Memeriksa sekitar tiap 15 menit dan memberi tahu Anda")
         add("Tapping Start will ask for location permission",
@@ -153,15 +173,14 @@ object I18n {
             "点击“开始”的位置即为原点 (0, 0)", "スタートを押した場所が原点(0, 0)になります", "El lugar donde tocas Iniciar será el origen (0, 0)", "O local onde você toca em Iniciar será a origem (0, 0)", "Der Ort, an dem du Start tippst, wird zum Ursprung (0, 0)", "L'endroit où vous touchez Démarrer devient l'origine (0, 0)", "Место, где вы нажмёте «Старт», станет началом координат (0, 0)", "Tempat Anda mengetuk Mulai menjadi titik asal (0, 0)")
         add("The run was too short, so it wasn't saved.",
             "移动距离太短，未保存。", "移動距離が短すぎるため保存しませんでした。", "La carrera fue demasiado corta y no se guardó.", "A corrida foi curta demais e não foi salva.", "Der Lauf war zu kurz und wurde nicht gespeichert.", "La course était trop courte et n'a pas été enregistrée.", "Пробежка слишком короткая и не сохранена.", "Lari terlalu pendek sehingga tidak disimpan.")
-    }
-
-    private fun part1() {
         add("Tap: value & location · Two fingers: zoom",
             "点按：查看数值和位置 · 双指：缩放", "タップ: 値と位置 · 2本指: 拡大/縮小", "Toque: valor y ubicación · Dos dedos: zoom", "Toque: valor e local · Dois dedos: zoom", "Tippen: Wert & Position · Zwei Finger: Zoom", "Toucher : valeur et position · Deux doigts : zoom", "Касание: значение и место · Два пальца: масштаб", "Ketuk: nilai & lokasi · Dua jari: zoom")
         add("This name is shown to your group members.",
             "该名字会显示给群组成员。", "グループメンバーに表示される名前です。", "Este nombre se muestra a los miembros de tu grupo.", "Este nome é mostrado aos membros do seu grupo.", "Dieser Name wird deinen Gruppenmitgliedern angezeigt.", "Ce nom est visible par les membres de vos groupes.", "Это имя видят участники ваших групп.", "Nama ini ditampilkan kepada anggota grup Anda.")
         add("Precise location permission is required.",
             "需要精确位置权限。", "正確な位置情報の権限が必要です。", "Se requiere el permiso de ubicación precisa.", "É necessária a permissão de localização precisa.", "Die Berechtigung für den genauen Standort ist erforderlich.", "L'autorisation de localisation précise est requise.", "Требуется разрешение на точную геолокацию.", "Izin lokasi akurat diperlukan.")
+        add("Earned by running at a fast average pace",
+            "以较快的平均配速跑步即可获得", "速い平均ペースで走るともらえるバッジ", "Se consigue corriendo a un ritmo medio rápido", "Conquistada ao correr em um ritmo médio rápido", "Für Läufe mit schneller Durchschnittspace", "Obtenu en courant à une allure moyenne rapide", "Выдаётся за быстрый средний темп", "Diperoleh dengan berlari pada pace rata-rata yang cepat")
         add("No runs yet.\nTap Start on the Run tab!",
             "还没有记录。\n在“跑步”标签页点“开始”试试吧！", "まだ記録がありません。\n「ラン」タブでスタートを押してみましょう！", "Aún no hay carreras.\n¡Toca Iniciar en la pestaña Correr!", "Ainda não há corridas.\nToque em Iniciar na aba Correr!", "Noch keine Läufe.\nTippe im Tab Laufen auf Start!", "Aucune course pour le moment.\nTouchez Démarrer dans l'onglet Courir !", "Пробежек пока нет.\nНажмите «Старт» на вкладке «Бег»!", "Belum ada lari.\nKetuk Mulai di tab Lari!")
         add("This is not a RunMate invite QR/code.",
@@ -204,16 +223,23 @@ object I18n {
             "要将“{0}”移出群组“{1}”吗？", "「{0}」さんをグループ「{1}」から外しますか？", "¿Eliminar a '{0}' del grupo '{1}'?", "Remover '{0}' do grupo '{1}'?", "'{0}' aus der Gruppe '{1}' entfernen?", "Retirer '{0}' du groupe '{1}' ?", "Удалить «{0}» из группы «{1}»?", "Keluarkan '{0}' dari grup '{1}'?")
         add("Can't open the payment page.",
             "无法打开支付页面。", "支払いページを開けません。", "No se puede abrir la página de pago.", "Não foi possível abrir a página de pagamento.", "Die Zahlungsseite kann nicht geöffnet werden.", "Impossible d'ouvrir la page de paiement.", "Не удаётся открыть страницу оплаты.", "Tidak dapat membuka halaman pembayaran.")
+        add("Remove the idle tail (last {0})",
+            "移除末尾停留的部分（最后 {0}）", "止まっていた末尾を削除（最後の{0}）", "Quitar el final sin movimiento (últimos {0})", "Remover o final parado (últimos {0})", "Stillstand am Ende entfernen (letzte {0})", "Supprimer la fin à l’arrêt (dernières {0})", "Убрать простой в конце (последние {0})", "Hapus bagian akhir yang diam ({0} terakhir)")
         add("Couldn't remove the member.",
             "移除失败。", "外せませんでした。", "No se pudo eliminar al miembro.", "Não foi possível remover o membro.", "Mitglied konnte nicht entfernt werden.", "Impossible de retirer le membre.", "Не удалось удалить участника.", "Gagal mengeluarkan anggota.")
         add("Thank you for the coffee! ☕",
             "谢谢你的咖啡！☕", "コーヒーをありがとうございます！☕", "¡Gracias por el café! ☕", "Obrigado pelo café! ☕", "Danke für den Kaffee! ☕", "Merci pour le café ! ☕", "Спасибо за кофе! ☕", "Terima kasih atas kopinya! ☕")
+        add("Earned by running regularly",
+            "经常坚持跑步即可获得", "コツコツと頻繁に走るともらえるバッジ", "Se consigue corriendo con regularidad", "Conquistada ao correr com regularidade", "Für regelmäßiges Laufen", "Obtenu en courant régulièrement", "Выдаётся за регулярные пробежки", "Diperoleh dengan berlari secara rutin")
         add("{0} km · Open the app to stop",
             "{0} km · 打开应用以结束", "{0} km · 終了するにはアプリを開いてください", "{0} km · Abre la app para detener", "{0} km · Abra o app para parar", "{0} km · Zum Beenden App öffnen", "{0} km · Ouvrez l'appli pour arrêter", "{0} км · Откройте приложение, чтобы остановить", "{0} km · Buka aplikasi untuk berhenti")
         add("Location permission needed",
             "需要位置权限", "位置情報の権限が必要です", "Se necesita permiso de ubicación", "Permissão de localização necessária", "Standortberechtigung erforderlich", "Autorisation de localisation requise", "Нужно разрешение на геолокацию", "Izin lokasi diperlukan")
         add("Waiting for first location",
             "正在等待首次定位", "最初の位置を待っています", "Esperando la primera ubicación", "Aguardando a primeira localização", "Warte auf ersten Standort", "En attente de la première position", "Ожидание первой точки", "Menunggu lokasi pertama")
+    }
+
+    private fun part2() {
         add("New runs from your groups",
             "群组成员的新记录", "グループメンバーの新しい記録", "Nuevas carreras de tus grupos", "Novas corridas dos seus grupos", "Neue Läufe aus deinen Gruppen", "Nouvelles courses de vos groupes", "Новые пробежки из ваших групп", "Lari baru dari grup Anda")
         add("People (tap to hide/show)",
@@ -236,13 +262,12 @@ object I18n {
             "打开位置设置", "位置情報の設定を開く", "Abrir ajustes de ubicación", "Abrir ajustes de localização", "Standorteinstellungen öffnen", "Ouvrir les réglages de localisation", "Открыть настройки геолокации", "Buka setelan lokasi")
         add("Finish without sending",
             "不发送并结束", "送らずに終了", "Terminar sin enviar", "Terminar sem enviar", "Ohne Senden beenden", "Terminer sans envoyer", "Завершить без отправки", "Selesai tanpa mengirim")
-    }
-
-    private fun part2() {
         add("Smoothing: {0} s average",
             "平滑：{0} 秒平均", "なめらかさ: {0}秒平均", "Suavizado: media de {0} s", "Suavização: média de {0} s", "Glättung: {0}-s-Mittel", "Lissage : moyenne sur {0} s", "Сглаживание: среднее за {0} с", "Penghalusan: rata-rata {0} dtk")
         add("Location (GPS) is off",
             "位置（GPS）已关闭", "位置情報（GPS）がオフです", "La ubicación (GPS) está desactivada", "A localização (GPS) está desativada", "Standort (GPS) ist aus", "La localisation (GPS) est désactivée", "Геолокация (GPS) выключена", "Lokasi (GPS) mati")
+        add("No badges earned yet.",
+            "还没有获得徽章。", "まだ獲得したバッジがありません。", "Aún no has conseguido insignias.", "Nenhuma medalha conquistada ainda.", "Noch keine Abzeichen erhalten.", "Aucun badge obtenu pour le moment.", "Значков пока нет.", "Belum ada lencana yang diperoleh.")
         add("Joined the group '{0}'.",
             "已加入群组“{0}”。", "グループ「{0}」に参加しました。", "Te uniste al grupo '{0}'.", "Você entrou no grupo '{0}'.", "Der Gruppe '{0}' beigetreten.", "Vous avez rejoint le groupe '{0}'.", "Вы вступили в группу «{0}».", "Bergabung dengan grup '{0}'.")
         add("  · You're the owner",
@@ -253,12 +278,20 @@ object I18n {
             "GPS 信号弱（±{0}m）", "GPS信号が弱い（±{0}m）", "Señal GPS débil (±{0}m)", "Sinal de GPS fraco (±{0}m)", "Schwaches GPS-Signal (±{0}m)", "Signal GPS faible (±{0}m)", "Слабый сигнал GPS (±{0} м)", "Sinyal GPS lemah (±{0}m)")
         add("Follow phone setting",
             "跟随手机设置", "端末の設定に従う", "Seguir ajuste del teléfono", "Seguir configuração do celular", "Telefoneinstellung folgen", "Suivre le réglage du téléphone", "Как в настройках телефона", "Ikuti setelan ponsel")
+        add("The end was trimmed.",
+            "已裁剪末尾。", "末尾を切り取りました。", "Se recortó el final.", "O final foi cortado.", "Das Ende wurde abgeschnitten.", "La fin a été coupée.", "Конец обрезан.", "Bagian akhir telah dipotong.")
+        add("Can't trim this run.",
+            "无法裁剪这条记录。", "この記録は切り取れません。", "No se puede recortar esta carrera.", "Não é possível cortar esta corrida.", "Dieser Lauf kann nicht gekürzt werden.", "Impossible de couper cette course.", "Эту пробежку нельзя обрезать.", "Lari ini tidak dapat dipotong.")
         add("GPS is unavailable.",
             "GPS 不可用。", "GPSを利用できません。", "El GPS no está disponible.", "O GPS não está disponível.", "GPS ist nicht verfügbar.", "Le GPS n'est pas disponible.", "GPS недоступен.", "GPS tidak tersedia.")
         add("Invite code copied.",
             "已复制邀请码。", "招待コードをコピーしました。", "Código de invitación copiado.", "Código de convite copiado.", "Einladungscode kopiert.", "Code d'invitation copié.", "Код приглашения скопирован.", "Kode undangan disalin.")
         add("Fetching elevation…",
             "正在获取海拔…", "標高を取得中…", "Obteniendo altitud…", "Obtendo altitude…", "Höhe wird geladen…", "Récupération de l'altitude…", "Загрузка высот…", "Mengambil elevasi…")
+        add("Badges you can earn",
+            "可以挑战的徽章", "挑戦できるバッジ", "Insignias que puedes conseguir", "Medalhas que você pode conquistar", "Abzeichen, die du verdienen kannst", "Badges à obtenir", "Значки, которые можно получить", "Lencana yang bisa diraih")
+        add("Distance in one run",
+            "单次跑步距离", "1回のランの距離", "Distancia en una carrera", "Distância em uma corrida", "Distanz in einem Lauf", "Distance en une course", "Дистанция за одну пробежку", "Jarak dalam satu lari")
         add("Getting GPS ready…",
             "GPS 准备中…", "GPS準備中…", "Preparando GPS…", "Preparando GPS…", "GPS wird vorbereitet…", "Préparation du GPS…", "Подготовка GPS…", "Menyiapkan GPS…")
         add("Recording · GPS ±{0}m",
@@ -283,8 +316,13 @@ object I18n {
             "已导出 {0} 条记录。", "記録を{0}件エクスポートしました。", "Se exportaron {0} carreras.", "{0} corridas exportadas.", "{0} Läufe exportiert.", "{0} courses exportées.", "Экспортировано пробежек: {0}.", "{0} lari diekspor.")
         add("Waiting to send",
             "等待发送", "送信待ち", "Pendiente de envío", "Aguardando envio", "Wartet auf Versand", "En attente d'envoi", "Ожидает отправки", "Menunggu dikirim")
+        add("Time in one run",
+            "单次跑步时间", "1回のランの時間", "Tiempo en una carrera", "Tempo em uma corrida", "Zeit in einem Lauf", "Durée en une course", "Время одной пробежки", "Waktu dalam satu lari")
         add("New run alerts",
             "新记录提醒", "新しい記録の通知", "Avisos de carreras nuevas", "Alertas de novas corridas", "Hinweise auf neue Läufe", "Alertes de nouvelles courses", "Оповещения о новых пробежках", "Pemberitahuan lari baru")
+    }
+
+    private fun part3() {
         add("Not synced yet",
             "尚未同步", "まだ同期していません", "Aún sin sincronizar", "Ainda não sincronizado", "Noch nicht synchronisiert", "Pas encore synchronisé", "Синхронизации ещё не было", "Belum disinkronkan")
         add("New group name",
@@ -319,11 +357,10 @@ object I18n {
             "成员记录", "メンバーの記録", "Carreras de miembros", "Corridas dos membros", "Läufe der Mitglieder", "Courses des membres", "Пробежки участников", "Lari anggota")
         add("Run complete!",
             "跑步完成！", "ラン完了！", "¡Carrera completada!", "Corrida concluída!", "Lauf beendet!", "Course terminée !", "Пробежка завершена!", "Lari selesai!")
-    }
-
-    private fun part3() {
         add("Select period",
             "选择时间范围", "期間を選択", "Elegir periodo", "Escolher período", "Zeitraum wählen", "Choisir la période", "Выберите период", "Pilih periode")
+        add("Earned badges",
+            "已获得的徽章", "獲得したバッジ", "Insignias conseguidas", "Medalhas conquistadas", "Erhaltene Abzeichen", "Badges obtenus", "Полученные значки", "Lencana yang diperoleh")
         add("Compare runs",
             "对比记录", "ラン比較", "Comparar carreras", "Comparar corridas", "Läufe vergleichen", "Comparer", "Сравнение", "Bandingkan lari")
         add("No runs yet.",
@@ -342,6 +379,10 @@ object I18n {
             "当前配速", "現在のペース", "Ritmo actual", "Ritmo atual", "Akt. Pace", "Allure actuelle", "Текущий темп", "Pace saat ini")
         add("Last 30 days",
             "最近 30 天", "直近30日", "Últimos 30 días", "Últimos 30 dias", "Letzte 30 Tage", "30 derniers jours", "Последние 30 дней", "30 hari terakhir")
+        add("Achievements",
+            "成就", "実績", "Logros", "Conquistas", "Erfolge", "Succès", "Достижения", "Pencapaian")
+        add("Trim the end",
+            "裁剪末尾", "末尾を切り取る", "Recortar el final", "Cortar o final", "Ende abschneiden", "Couper la fin", "Обрезать конец", "Potong bagian akhir")
         add("Select runs",
             "选择记录", "記録を選択", "Elegir carreras", "Escolher corridas", "Läufe wählen", "Choisir des courses", "Выбрать пробежки", "Pilih lari")
         add("Removed '{0}'.",
@@ -350,6 +391,10 @@ object I18n {
             "退出群组", "グループを退出", "Salir del grupo", "Sair do grupo", "Gruppe verlassen", "Quitter le groupe", "Выйти из группы", "Keluar dari grup")
         add("Distance km",
             "距离 km", "距離 km", "Distancia km", "Distância km", "Distanz km", "Distance km", "Дистанция, км", "Jarak km")
+        add("Consistency",
+            "坚持", "継続", "Constancia", "Constância", "Beständigkeit", "Régularité", "Регулярность", "Konsistensi")
+        add("Coming soon",
+            "准备中", "準備中", "Próximamente", "Em breve", "Demnächst", "Bientôt", "Скоро", "Segera hadir")
         add("Fast route",
             "快速通道", "高速経路", "Ruta rápida", "Rota rápida", "Schneller Weg", "Voie rapide", "Быстрый канал", "Jalur cepat")
         add("Export all",
@@ -358,6 +403,9 @@ object I18n {
             "高度(API)", "高度(API)", "Altura (API)", "Altura (API)", "Höhe (API)", "Altitude (API)", "Высота (API)", "Tinggi (API)")
         add("Elev (GPS)",
             "高度(GPS)", "高度(GPS)", "Altura (GPS)", "Altura (GPS)", "Höhe (GPS)", "Altitude (GPS)", "Высота (GPS)", "Tinggi (GPS)")
+    }
+
+    private fun part4() {
         add("Export CSV",
             "导出 CSV", "CSVでエクスポート", "Exportar CSV", "Exportar CSV", "CSV exportieren", "Exporter en CSV", "Экспорт CSV", "Ekspor CSV")
         add("Export GPX",
@@ -402,9 +450,8 @@ object I18n {
             "爬升 m", "上昇 m", "Ascenso m", "Subida m", "Anstieg m", "Dénivelé m", "Набор, м", "Tanjakan m")
         add("Language",
             "语言", "言語", "Idioma", "Idioma", "Sprache", "Langue", "Язык", "Bahasa")
-    }
-
-    private fun part4() {
+        add("Champion",
+            "冠军", "チャンピオン", "Campeón", "Campeão", "Champion", "Champion", "Чемпион", "Juara")
         add("History",
             "记录", "履歴", "Historial", "Histórico", "Verlauf", "Historique", "История", "Riwayat")
         add("Analyze",
@@ -439,6 +486,9 @@ object I18n {
             "跑者", "ランナー", "Corredor", "Corredor", "Läufer", "Coureur", "Бегун", "Pelari")
         add("Trends",
             "趋势", "推移", "Tendencias", "Tendências", "Trends", "Tendances", "Динамика", "Tren")
+    }
+
+    private fun part5() {
         add("Remove",
             "移除", "外す", "Quitar", "Remover", "Entfernen", "Retirer", "Убрать", "Hapus")
         add("Y axis",
@@ -469,6 +519,8 @@ object I18n {
             "自定义", "期間指定", "Personalizado", "Personalizado", "Benutzerdefiniert", "Personnalisé", "Свой период", "Kustom")
         add("Charts",
             "图表", "グラフ", "Gráficas", "Gráficos", "Diagramme", "Graphiques", "Графики", "Grafik")
+        add("Badges",
+            "成就", "実績", "Logros", "Conquistas", "Erfolge", "Succès", "Награды", "Lencana")
         add("Speed",
             "速度", "速度", "Velocidad", "Velocidade", "Tempo", "Vitesse", "Скорость", "Kecepatan")
         add("Daily",
@@ -485,9 +537,6 @@ object I18n {
             "路线", "ルート", "Ruta", "Rota", "Strecke", "Parcours", "Маршрут", "Rute")
         add("START",
             "开始", "スタート", "INICIAR", "INICIAR", "START", "DÉMARRER", "СТАРТ", "MULAI")
-    }
-
-    private fun part5() {
         add("Allow",
             "允许", "許可する", "Permitir", "Permitir", "Erlauben", "Autoriser", "Разрешить", "Izinkan")
         add("{0} (me)",
@@ -520,6 +569,9 @@ object I18n {
             "发送", "送信", "Enviar", "Enviar", "Senden", "Envoyer", "Отправить", "Kirim")
         add("STOP",
             "结束", "終了", "DETENER", "PARAR", "STOPP", "ARRÊTER", "СТОП", "BERHENTI")
+    }
+
+    private fun part6() {
         add("Run",
             "跑步", "ラン", "Correr", "Correr", "Laufen", "Courir", "Бег", "Lari")
         add("min",

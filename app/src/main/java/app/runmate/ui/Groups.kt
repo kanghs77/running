@@ -99,6 +99,7 @@ fun GroupsScreen() {
     val scanner = rememberLauncherForActivityResult(ScanContract()) { r -> r.contents?.let { join(it) } }
     fun scan() {
         try {
+            app.skipHomeOnce = true
             scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr("친구의 초대 QR 코드를 비춰 주세요", "Point at your friend's invite QR code")).setBeepEnabled(false).setOrientationLocked(false))
         } catch (e: Exception) { RunController.notice.value = tr("카메라를 열 수 없어요. '코드로 참여'를 이용해 주세요.", "Can't open the camera. Please use 'Join by code'.") }
     }

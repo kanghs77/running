@@ -41,6 +41,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.runmate.ui.AnalyzeScreen
+import app.runmate.ui.AchievementsScreen
 import app.runmate.ui.GroupsScreen
 import app.runmate.ui.HistoryScreen
 import app.runmate.ui.HomeScreen
@@ -58,6 +59,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(SystemBarStyle.dark(AColor.TRANSPARENT), SystemBarStyle.dark(AColor.TRANSPARENT))
         super.onCreate(savedInstanceState)
         App.instance.applyLanguage()      // 휴대폰 언어가 바뀌어 화면이 다시 만들어진 경우 반영
+        // 시스템이 앱을 종료했다가 되살린 경우에도 예전 탭이 아니라 달리기 탭에서 시작한다
+        if (App.instance.freshProcess && savedInstanceState != null) RunController.goHome.value++
+        App.instance.freshProcess = false
         setContent { RunMateTheme { AppRoot() } }
         // 앱을 보고 있는 동안에는 1분마다 가볍게 새 기록을 확인한다(달리는 중 제외).
         lifecycleScope.launch {
@@ -70,12 +74,16 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         RunController.uiVisible.value = true
+        val a = App.instance
+        if (a.leftApp && !a.skipHomeOnce) RunController.goHome.value++      // 앱 밖에 나갔다 돌아오면 달리기 탭
+        a.leftApp = false; a.skipHomeOnce = false
         // 달리는 중에는 통신하지 않는다(전력 절약)
         if (!RunController.state.value.running) { App.instance.syncNow(); App.instance.coffee.refresh() }
     }
 
     override fun onStop() {
         RunController.uiVisible.value = false
+        if (!isChangingConfigurations) App.instance.leftApp = true          // 화면 회전 등은 제외
         super.onStop()
     }
 }
@@ -92,6 +100,8 @@ fun AppRoot() {
     val snack = remember { SnackbarHostState() }
     val unread = metas.count { it.unread }
 
+    val home by RunController.goHome.collectAsStateWithLifecycle()
+    LaunchedEffect(home) { if (home > 0) { tab = 0; detail = null } }
     LaunchedEffect(notice) {
         notice?.let { snack.showSnackbar(it); RunController.notice.value = null }
     }
@@ -102,7 +112,7 @@ fun AppRoot() {
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
             NavigationBar {
-                val tabs = listOf("🏃" to tr("달리기", "Run"), "📋" to tr("기록", "History"), "📈" to tr("분석", "Analyze"), "🏆" to tr("순위", "Rank"), "👥" to tr("그룹", "Groups"), "⚙️" to tr("설정", "Settings"))
+                val tabs = listOf("🏃" to tr("달리기", "Run"), "📋" to tr("기록", "History"), "📈" to tr("분석", "Analyze"), "🏆" to tr("순위", "Rank"), "🏅" to tr("업적", "Badges"), "👥" to tr("그룹", "Groups"), "⚙️" to tr("설정", "Settings"))
                 tabs.forEachIndexed { i, (icon, label) ->
                     NavigationBarItem(
                         selected = tab == i && detail == null,
@@ -132,7 +142,8 @@ fun AppRoot() {
                 1 -> HistoryScreen(onOpen = { detail = it })
                 2 -> AnalyzeScreen(compare)
                 3 -> RankScreen()
-                4 -> GroupsScreen()
+                4 -> AchievementsScreen()
+                5 -> GroupsScreen()
                 else -> SettingsScreen()
             }
           }

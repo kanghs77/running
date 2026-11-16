@@ -194,6 +194,30 @@ object Series {
         return Pts(xs, ys)
     }
 
+    /**
+     * 종료를 누르지 않고 멈춰 있던 끝부분의 시작 인덱스. 없으면 null.
+     * 마지막 위치에서 반경 15m 안에 계속 머문 구간을 찾고, 그 구간이 2분 이상일 때만 알려준다.
+     * (이동 거리 합계가 아니라 위치로 판단하므로 제자리 GPS 떨림에 영향받지 않는다)
+     */
+    fun idleTailStart(t: Track, radiusM: Double = 15.0, minSeconds: Int = 120): Int? {
+        if (t.n < 3) return null
+        val end = t.n - 1
+        val r = radiusM * 10
+        var k = end
+        for (i in end - 1 downTo 0) {
+            if (hypot((t.x[i] - t.x[end]).toDouble(), (t.y[i] - t.y[end]).toDouble()) > r) break
+            k = i
+        }
+        return if (k >= 1 && (t.t[end] - t.t[k]) >= minSeconds * 10) k else null
+    }
+
+    /** 누적거리가 distM 이상이 되는 첫 점 (그래프에서 고른 지점 -> 자를 위치) */
+    fun firstIndexAtDistance(t: Track, distM: Double): Int {
+        val cum = cumDist(t)
+        for (i in 0 until t.n) if (cum[i] >= distM - 0.05) return i
+        return t.n - 1
+    }
+
     /** 누적 상승고도(m). 1m 미만의 잔떨림은 무시. */
     fun ascent(t: Track): Double {
         val src = t.ele ?: t.alt

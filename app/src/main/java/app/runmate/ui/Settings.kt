@@ -69,7 +69,7 @@ fun CoffeeFooter() {
     val p = price ?: return
     val ctx = LocalContext.current
     Box(
-        Modifier.fillMaxWidth().clickable { (ctx as? Activity)?.let { app.coffee.buy(it) } }.testTag("coffee").padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().clickable { (ctx as? Activity)?.let { app.skipHomeOnce = true; app.coffee.buy(it) } }.testTag("coffee").padding(vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(tr("☕ 개발자에게 커피 선물하기 · $p", "☕ Buy the developer a coffee · $p"), color = Color(0x59FFFFFF), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)

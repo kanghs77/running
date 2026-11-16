@@ -16,8 +16,8 @@ android {
         applicationId = "app.runmate"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.6.0"
+        versionCode = 8
+        versionName = "1.7.0"
     }
 
     // 서명 키는 저장소에 올리지 않는다. keystore/signing.properties 가 있으면 그 키로,

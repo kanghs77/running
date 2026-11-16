@@ -109,6 +109,19 @@ class Track(
         delta(t), delta(x), delta(y), delta(alt), delta(spd), ele?.let { delta(it) }, eleSrc, oLat, oLon,
     )
 
+    /** endIdx번째 점까지만 남긴 기록(끝부분 잘라내기). 남는 점이 2개 미만이면 null. */
+    fun trimmed(endIdx: Int): Track? {
+        val m = endIdx + 1
+        if (endIdx < 1 || m > n) return null
+        if (m == n) return this
+        var dist = 0.0
+        for (i in 1 until m) dist += Math.hypot((x[i] - x[i - 1]) / 10.0, (y[i] - y[i - 1]) / 10.0)
+        return Track(
+            id, ownerId, ownerName, startMs, maxOf(1, t[endIdx] / 10), dist,
+            t.copyOf(m), x.copyOf(m), y.copyOf(m), alt.copyOf(m), spd.copyOf(m), ele?.copyOf(m), eleSrc, oLat, oLon,
+        )
+    }
+
     /** 공유용: 절대 위치(위경도)를 제거하고 점 개수를 제한한다. */
     fun forSharing(maxPoints: Int = MAX_SHARE_POINTS): Track {
         if (n <= maxPoints) return copy(oLat = null, oLon = null)

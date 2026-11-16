@@ -317,7 +317,7 @@ class UiTest {
         shot("14_rank_group")
         rule.onNodeWithText("직접 선택").performScrollTo().performClick(); rule.waitForIdle()
         rule.onNodeWithText("취소").performClick(); rule.waitForIdle()
-        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
         shot("15_groups")
         rule.onAllNodesWithText("초대 QR").onFirst().performScrollTo().performClick(); rule.waitForIdle()
         dialogShot("16_qr")
@@ -361,6 +361,14 @@ class UiTest {
                 androidx.compose.ui.geometry.Offset(width * 0.55f, height * 0.4f), androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.4f))
         }; rule.waitForIdle()
         rule.onNodeWithText("속도").assertIsSelected()               // 확대 중에는 페이지가 넘어가지 않는다
+        // 두 손가락을 세로로 벌리면 세로축만 조절된다
+        rule.onNodeWithText("전체 구간 보기").performScrollTo().performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("pager").performScrollTo().performTouchInput {
+            pinch(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.25f), androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.35f),
+                androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.6f), androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.5f))
+        }; rule.waitForIdle()
+        rule.onNodeWithText("전체 구간 보기").performScrollTo().assertIsDisplayed()
+        shot("17_detail_yzoom")
         rule.onNodeWithText("전체 구간 보기").performScrollTo().assertIsDisplayed()
         shot("17_detail_zoomed")
         rule.onNodeWithText("격자").performScrollTo().performClick(); rule.waitForIdle()
@@ -377,7 +385,7 @@ class UiTest {
     // Robolectric은 w411dp 화면 설정에서 '대화상자 안 입력창'을 처리하지 못해(앱과 무관) 기본 화면 크기로 실행한다.
     @Config(qualifiers = "w320dp-h470dp-mdpi")
     @Test fun createGroupFlowAsksNameThenShowsQr() {
-        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
         shot("18_groups_empty")
         rule.onNodeWithTag("create").performClick()
         rule.onNodeWithTag("input").performTextInput("달리는곰")
@@ -407,7 +415,7 @@ class UiTest {
 
     @Test fun adminKicksMemberFromUi() {
         seed()
-        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
         val before = app.store.groups.value.first { it.name == "한강 크루" }
         rule.onAllNodes(androidx.compose.ui.test.hasTestTag("manage")).onFirst().performScrollTo().performClick(); rule.waitForIdle()
         dialogShot("20_manage_members")
@@ -447,13 +455,13 @@ class UiTest {
 
     @Test fun languageSwitchAndSettingsTab() {
         seed()
-        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab6").performClick(); rule.waitForIdle()
         assertEquals(2, rule.onAllNodesWithText("설정").fetchSemanticsNodes().size)     // 제목 + 탭
         shot("40_settings_ko")
         rule.onNodeWithTag("lang_en").performClick(); rule.waitForIdle()
         assertEquals("en", app.store.settings.value.lang); assertEquals("en", app.lang.value)
         rule.onNodeWithText("Language").assertIsDisplayed()
-        for (t in listOf("Run", "History", "Analyze", "Rank", "Groups")) rule.onNodeWithText(t).assertIsDisplayed()
+        for (t in listOf("Run", "History", "Analyze", "Rank", "Badges", "Groups")) rule.onNodeWithText(t).assertIsDisplayed()
         shot("41_settings_en")
         rule.onNodeWithTag("tab0").performClick(); rule.waitForIdle()
         rule.onNodeWithText("START").assertIsDisplayed()
@@ -469,7 +477,7 @@ class UiTest {
         rule.onNodeWithText("Weekly").assertIsDisplayed()
         rule.onNodeWithTag("tab3").performClick(); rule.waitForIdle()
         rule.onNodeWithText("This month").assertIsDisplayed(); shot("46_rank_en")
-        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
         rule.onNodeWithText("Create group").assertIsDisplayed(); shot("47_groups_en")
         // 알림 문구도 영어
         RunController.uiVisible.value = false
@@ -480,7 +488,7 @@ class UiTest {
         assertEquals("Recording run", nm.getNotificationChannel(App.CH_RUN).name.toString())
         RunController.uiVisible.value = true
         // '휴대폰 설정 따름': 휴대폰 언어에 맞춘다
-        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("tab6").performClick(); rule.waitForIdle()
         val old = java.util.Locale.getDefault()
         try {
             java.util.Locale.setDefault(java.util.Locale.KOREA)
@@ -506,13 +514,13 @@ class UiTest {
             "ru" to listOf("Бег", "Настройки", "Язык"), "id" to listOf("Lari", "Setelan", "Bahasa"))
         assertEquals(10, I18n.SUPPORTED.size)
         for ((code, words) in expect) {
-            rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+            rule.onNodeWithTag("tab6").performClick(); rule.waitForIdle()
             rule.onNodeWithTag("lang_$code").performScrollTo().performClick(); rule.waitForIdle()
             assertEquals(code, app.lang.value)
             for (w in words) assertTrue("$code: $w", rule.onAllNodesWithText(w).fetchSemanticsNodes().isNotEmpty())
             shot("50_${code}_settings")
             // 모든 탭이 그 언어로 문제없이 그려지는지
-            for (i in 0..4) { rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle(); if (code in listOf("de", "ru", "ja", "zh")) shot("50_${code}_tab$i") }
+            for (i in 0..5) { rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle(); if (code in listOf("de", "ru", "ja", "zh")) shot("50_${code}_tab$i") }
             rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
             rule.onAllNodesWithText(tr("나", "Me")).onFirst().performClick(); rule.waitForIdle()
             rule.waitUntil(5000) { rule.onAllNodesWithText(tr("페이스", "Pace")).fetchSemanticsNodes().isNotEmpty() }
@@ -532,7 +540,7 @@ class UiTest {
         assertTrue(rule.onAllNodes(androidx.compose.ui.test.hasTestTag("coffee")).fetchSemanticsNodes().isEmpty())
         coffee.price.value = "₩2,900"
         rule.waitForIdle()
-        for (i in 0..5) {
+        for (i in 0..6) {
             rule.onNodeWithTag("tab$i").performClick(); rule.waitForIdle()
             rule.onNodeWithTag("coffee").assertIsDisplayed()
         }
@@ -561,6 +569,69 @@ class UiTest {
         assertTrue(startedIntents().none { it.action == Intent.ACTION_VIEW })
         assertNotNull(RunController.notice.value)
         RunController.notice.value = null
+    }
+
+    @Test fun returningToAppShowsStartTab() {
+        seed()
+        rule.onNodeWithTag("tab4").performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("achievements").assertIsDisplayed()
+        shot("60_achievements")
+        // 화면 회전 같은 재구성은 탭을 유지
+        rule.onNodeWithTag("tab3").performClick(); rule.waitForIdle()
+        // 앱 밖으로 나갔다 돌아오면 달리기 탭(시작 버튼)
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        rule.waitForIdle()
+        rule.onNodeWithTag("start").assertIsDisplayed()
+        // 기록 상세를 보다가 나갔다 와도 마찬가지
+        rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
+        rule.onAllNodesWithText("NEW").onFirst().performClick(); rule.waitForIdle()
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        rule.waitForIdle()
+        rule.onNodeWithTag("start").assertIsDisplayed()
+        // 앱이 직접 띄운 화면(QR 스캔, 파일 저장 등)에서 돌아올 때는 보던 탭을 유지
+        rule.onNodeWithTag("tab5").performClick(); rule.waitForIdle()
+        app.skipHomeOnce = true
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        rule.waitForIdle()
+        rule.onNodeWithTag("create").assertIsDisplayed()
+        assertFalse(app.skipHomeOnce)
+    }
+
+    @Test fun trimIdleTailAndPickedPoint() {
+        val me = app.store.identity.value
+        // 10분 달리고 종료를 안 눌러 20분 동안 멈춰 있던 기록
+        val r = RunRecorder("forgot", 0, System.currentTimeMillis() - 3600_000)
+        for (i in 0..600) r.onFix(fixAt(i * 1000L, i * 3.0, alt = 20.0, speed = 3f))
+        val rnd = java.util.Random(3)
+        for (i in 601..1800) r.onFix(fixAt(i * 1000L, 1800.0 + rnd.nextGaussian() * 0.6, rnd.nextGaussian() * 0.6, alt = 20.0, speed = 0f))
+        val t = r.finish(1_801_000, me.id, me.name)!!
+        app.store.saveTrack(t) { Series.meta(t, true) }
+        assertEquals(1801, app.store.meta("forgot")!!.durationS)
+        rule.onNodeWithTag("tab1").performClick(); rule.waitForIdle()
+        rule.onAllNodesWithText("나").onFirst().performClick(); rule.waitForIdle()
+        rule.waitUntil(5000) { rule.onAllNodesWithText("페이스").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("trim").performScrollTo().performClick(); rule.waitForIdle()
+        dialogShot("61_trim_dialog")
+        rule.onNodeWithTag("trimIdle").performClick(); rule.waitForIdle()
+        rule.waitUntil(5000) { app.store.meta("forgot")!!.durationS < 700 }
+        val m = app.store.meta("forgot")!!
+        assertTrue("dur=${m.durationS}", m.durationS in 595..640)
+        assertEquals(1800.0, m.distanceM, 30.0)
+        assertEquals(m.n, app.store.loadTrack("forgot")!!.n)
+        // 그래프에서 고른 지점 이후 자르기
+        Thread.sleep(400); rule.waitForIdle()        // 잘라낸 기록을 다시 불러올 때까지
+        RunController.notice.value = null
+        rule.mainClock.advanceTimeBy(12_000); rule.waitForIdle()      // 하단 안내 메시지가 사라질 때까지
+        rule.onNodeWithTag("pager").performScrollTo().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.4f)) }; rule.waitForIdle()
+        rule.onNodeWithTag("trim").performScrollTo().performClick(); rule.waitForIdle()
+        rule.onNodeWithTag("trimPicked").performClick(); rule.waitForIdle()
+        rule.waitUntil(5000) { app.store.meta("forgot")!!.distanceM < 1500 }
+        val m2 = app.store.meta("forgot")!!
+        assertTrue("dist=${m2.distanceM}", m2.distanceM in 600.0..1200.0)
+        assertTrue(m2.durationS in 200..400)
     }
 
     @Test fun mutedNotificationsStillMarkUnread() {

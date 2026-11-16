@@ -58,6 +58,8 @@ object RunController {
     /** 사용자에게 한 번 보여줄 안내 문구 */
     val notice = MutableStateFlow<String?>(null)
     val uiVisible = MutableStateFlow(false)
+    /** 값이 바뀌면 화면이 첫 탭(달리기)으로 돌아간다: 앱 밖에 나갔다 돌아왔을 때 */
+    val goHome = MutableStateFlow(0)
 }
 
 data class SyncUi(val syncing: Boolean = false, val lastOkMs: Long = 0, val status: Map<String, Boolean> = emptyMap(), val tried: Boolean = false)
@@ -68,6 +70,12 @@ class App : Application() {
     lateinit var elevation: ElevationClient
     lateinit var tiles: TileStore
     lateinit var coffee: CoffeeStore
+    /** 앱 밖으로 나갔는지(홈 버튼, 다른 앱 등) */
+    @Volatile var leftApp = false
+    /** 앱이 직접 띄운 화면(QR 스캔, 파일 저장, 결제)에서 돌아오는 경우에는 탭을 유지한다 */
+    @Volatile var skipHomeOnce = false
+    /** 프로세스가 새로 시작된 직후인지 */
+    @Volatile var freshProcess = true
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val syncUi = MutableStateFlow(SyncUi())
     /** 현재 표시 언어 코드. 화면이 이 값을 읽으므로 바뀌면 자동으로 다시 그려진다. */

@@ -99,7 +99,9 @@ class RunRecorder(
         val altDm = altBase?.let { b -> f.alt?.let { ((it - b) * 10).roundToInt().coerceIn(-100_000, 100_000) } } ?: lastAltDm
         if (altBase == null && f.alt != null) altBase = f.alt
         val minMove = maxOf(MIN_MOVE_M, minOf(f.accuracy.toDouble(), 12.0) * 0.35)
-        if (d >= minMove) {
+        // GPS가 직접 잰 속도가 거의 0이면 제자리 떨림으로 본다(멈춰 있는 동안 거리가 늘어나는 것을 막는다)
+        val standing = gpsSpeed != null && gpsSpeed < STANDING_SPEED && d < STANDING_MAX_JUMP_M
+        if (d >= minMove && !standing) {
             distanceM += d
             add(f.tMs, px, py, altDm, inst)
             return true
@@ -180,6 +182,8 @@ class RunRecorder(
         const val MAX_ACCURACY_M = 30f
         const val MAX_SPEED = 12.5
         const val MIN_MOVE_M = 2.0
+        const val STANDING_SPEED = 0.3
+        const val STANDING_MAX_JUMP_M = 15.0
         const val STILL_INTERVAL_S = 10.0
         const val MIN_TRACK_M = 10.0
         const val PLOT_POINTS = 400

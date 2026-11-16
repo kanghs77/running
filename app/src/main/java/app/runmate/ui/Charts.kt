@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -75,8 +76,21 @@ class ChartState {
     var to by mutableFloatStateOf(1f)
     /** 선택한 가로축 값(예: km). 지도 위 위치 표시에 쓰인다. */
     var cursorX by mutableStateOf<Double?>(null)
-    val zoomed: Boolean get() = to - from < 0.999f
-    fun reset() { from = 0f; to = 1f }
+    /** 세로축: 자동 범위에 대한 중심(0~1)과 폭(1=자동 범위). 폭을 키우면 그래프가 납작해진다. */
+    var yCenter by mutableFloatStateOf(0.5f)
+    var ySpan by mutableFloatStateOf(1f)
+    val zoomed: Boolean get() = to - from < 0.999f || kotlin.math.abs(ySpan - 1f) > 0.01f || kotlin.math.abs(yCenter - 0.5f) > 0.01f
+    fun reset() { from = 0f; to = 1f; yCenter = 0.5f; ySpan = 1f }
+
+    /** 두 손가락을 세로로 벌리기/모으기: 세로축만 확대/축소·이동. panFrac: 그래프 높이 대비 위(+)로 민 양 */
+    fun transformY(zoom: Float, centerFrac: Float, panFrac: Float) {
+        val z = if (zoom.isFinite() && zoom > 0f) zoom else 1f
+        val newSpan = (ySpan / z).coerceIn(0.05f, 10f)
+        val cf = centerFrac.coerceIn(0f, 1f)                       // 아래=0, 위=1
+        val anchor = yCenter + (cf - 0.5f) * ySpan
+        yCenter = (anchor - (cf - 0.5f) * newSpan - panFrac * newSpan).coerceIn(-5f, 6f)
+        ySpan = newSpan
+    }
 
     /** 두 손가락 확대/이동. centerFrac: 보이는 구간 안에서의 중심 위치(0~1), panFrac: 보이는 구간 대비 이동량 */
     fun transform(zoom: Float, centerFrac: Float, panFrac: Float) {
@@ -125,7 +139,12 @@ fun LineChart(
     if (y0 > y1) { y0 = 0.0; y1 = 1.0 }
     if (y1 - y0 < 1e-9) { y0 -= 0.5; y1 += 0.5 }
     val pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad
+    run {   // 사용자가 조절한 세로축 범위 적용
+        val lo = y0 + (state.yCenter - state.ySpan / 2) * (y1 - y0); val hi = y0 + (state.yCenter + state.ySpan / 2) * (y1 - y0)
+        y0 = lo; y1 = hi
+    }
     val range = rememberUpdatedState(x0 to x1)
+    val inverted = rememberUpdatedState(invertY)
 
     Column(modifier) {
         Canvas(
@@ -144,7 +163,16 @@ fun LineChart(
                             if (pressed.size >= 2) {
                                 multi = true
                                 val w = (size.width - l - rpad).coerceAtLeast(1f)
-                                state.transform(ev.calculateZoom(), frac(ev.calculateCentroid(useCurrent = false).x), ev.calculatePan().x / w)
+                                val top = 8.dp.toPx(); val hgt = (size.height - top - 20.dp.toPx()).coerceAtLeast(1f)
+                                val spread = pressed[0].position - pressed[1].position
+                                val c = ev.calculateCentroid(useCurrent = false)
+                                if (abs(spread.y) > abs(spread.x)) {
+                                    // 손가락이 세로로 놓여 있으면 세로축만 조절
+                                    val fromBottom = (1f - (c.y - top) / hgt).coerceIn(0f, 1f)
+                                    val cf = if (inverted.value) 1f - fromBottom else fromBottom
+                                    val pan = -ev.calculatePan().y / hgt
+                                    state.transformY(ev.calculateZoom(), cf, if (inverted.value) -pan else pan)
+                                } else state.transform(ev.calculateZoom(), frac(c.x), ev.calculatePan().x / w)
                                 ev.changes.forEach { it.consume() }
                             } else if (!multi) {
                                 val ch = pressed[0]
@@ -178,7 +206,7 @@ fun LineChart(
             drawLine(Axis, Offset(l, t), Offset(l, b), 1.5f)
             label(tm, yUnit, l + 4.dp.toPx(), t)
             label(tm, xUnit, r, b - 16.dp.toPx(), alignRight = true)
-            for (s in valid) {
+            clipRect(l, t, r, b) { for (s in valid) {
                 val p = Path()
                 var pen = false
                 // 보이는 구간의 점 개수에 맞춰 솎는다(확대하면 더 촘촘하게)
@@ -192,13 +220,13 @@ fun LineChart(
                     i += step
                 }
                 drawPath(p, s.color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-            }
+            } }
             state.cursorX?.let { xv ->
                 if (xv in x0..x1) {
                     val cx = sx(xv)
                     drawLine(Color.White, Offset(cx, t), Offset(cx, b), 1.5f)
                     for (s in valid) nearest(s.pts, xv)?.let { i ->
-                        if (s.pts.ys[i].isFinite() && s.pts.xs[i] in x0..x1) drawCircle(s.color, 4.dp.toPx(), Offset(sx(s.pts.xs[i]), sy(s.pts.ys[i])))
+                        if (s.pts.ys[i].isFinite() && s.pts.xs[i] in x0..x1 && sy(s.pts.ys[i]) in t..b) drawCircle(s.color, 4.dp.toPx(), Offset(sx(s.pts.xs[i]), sy(s.pts.ys[i])))
                     }
                 }
             }
@@ -212,7 +240,7 @@ fun LineChart(
                 Text("● ${s.label}: ${if (ok) yFormat(s.pts.ys[i!!]) + " " + yUnit else "-"}", color = s.color, style = MaterialTheme.typography.labelMedium)
             }
         } else if (showCursorValues && valid.isNotEmpty()) {
-            Text(tr("탭·드래그: 값·위치 보기 · 두 손가락: 확대/축소", "Tap or drag: value & location · Two fingers: zoom"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
+            Text(tr("탭·드래그: 값·위치 · 두 손가락 가로: 구간 확대 · 세로: 세로축 조절", "Tap or drag: value & location · Two fingers sideways: zoom range · up-down: adjust Y axis"), style = MaterialTheme.typography.labelSmall, color = Color(0x99FFFFFF))
         }
     }
 }

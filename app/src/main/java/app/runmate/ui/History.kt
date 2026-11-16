@@ -81,7 +81,7 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
             Text(tr("기록", "History"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (unread > 0) TextButton(onClick = { app.store.updateMetas { if (it.unread) it.copy(unread = false) else it } }) { Text(tr("모두 읽음", "Mark all read")) }
             if (metas.isNotEmpty()) TextButton(modifier = Modifier.testTag("exportAll"), onClick = {
-                try { zipLauncher.launch("runmate_" + fmtDay(System.currentTimeMillis()).replace('.', '-') + ".zip") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") }
+                try { app.skipHomeOnce = true; zipLauncher.launch("runmate_" + fmtDay(System.currentTimeMillis()).replace('.', '-') + ".zip") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") }
             }) { Text(tr("전체 내보내기", "Export all")) }
         }
         Chips(listOf(0 to tr("전체", "All"), 1 to tr("내 기록", "My runs"), 2 to tr("그룹원 기록", "Members' runs")), filter) { filter = it }
@@ -129,12 +129,14 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
     val meta = metas.firstOrNull { it.id == id }
     if (meta == null) { LaunchedEffect(id) { onBack() }; return }
     LaunchedEffect(id) { app.store.updateMeta(id) { if (it.unread) it.copy(unread = false) else it } }
-    val track by produceState<Track?>(null, id, meta.eleSrc) { value = withContext(Dispatchers.IO) { app.store.loadTrack(id) } }
+    val track by produceState<Track?>(null, id, meta.eleSrc, meta.n, meta.durationS) { value = withContext(Dispatchers.IO) { app.store.loadTrack(id) } }
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     var shareOpen by remember { mutableStateOf(false) }
     var eleBusy by remember { mutableStateOf(false) }
     var eleMsg by remember { mutableStateOf<String?>(null) }
+    var trimOpen by remember { mutableStateOf(false) }
+    val detailChart = remember(id) { ChartState() }
     val ctx = LocalContext.current
     fun save(uri: android.net.Uri?, text: () -> String?) {
         if (uri != null) app.scope.launch(Dispatchers.IO) {
@@ -161,7 +163,7 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         if (t == null) Text(tr("불러오는 중…", "Loading…"), color = Dim)
         else {
             val hasApi = t.ele != null
-            val chart = remember(id) { ChartState() }
+            val chart = detailChart
             val settings by app.store.settings.collectAsStateWithLifecycle()
             val canMap = t.oLat != null
             val distPts = remember(t) { Series.cumDist(t).let { c -> DoubleArray(t.n) { c[it] / 1000.0 } }.let { Pts(it, it) } }
@@ -217,9 +219,10 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
             TextButton(onClick = { confirmDelete = true }) { Text(tr("삭제", "Delete"), color = MaterialTheme.colorScheme.error) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { try { csvLauncher.launch(Export.fileBase(meta) + ".csv") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("CSV로 내보내기", "Export CSV")) }
-            if (meta.mine && track?.oLat != null) OutlinedButton(onClick = { try { gpxLauncher.launch(Export.fileBase(meta) + ".gpx") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("GPX로 내보내기", "Export GPX")) }
+            OutlinedButton(onClick = { try { app.skipHomeOnce = true; csvLauncher.launch(Export.fileBase(meta) + ".csv") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("CSV로 내보내기", "Export CSV")) }
+            if (meta.mine && track?.oLat != null) OutlinedButton(onClick = { try { app.skipHomeOnce = true; gpxLauncher.launch(Export.fileBase(meta) + ".gpx") } catch (e: Exception) { RunController.notice.value = tr("파일 저장 화면을 열 수 없어요.", "Can't open the file save screen.") } }) { Text(tr("GPX로 내보내기", "Export GPX")) }
         }
+        if (meta.mine) OutlinedButton(onClick = { trimOpen = true }, modifier = Modifier.testTag("trim")) { Text(tr("끝부분 잘라내기", "Trim the end")) }
         Spacer(Modifier.height(20.dp))
     }
 
@@ -230,6 +233,43 @@ fun TrackDetailScreen(id: String, onBack: () -> Unit, onCompare: () -> Unit) {
         confirmButton = { TextButton(onClick = { confirmDelete = false; app.store.deleteTrack(id); onBack() }, modifier = Modifier.testTag("confirmDelete")) { Text(tr("삭제", "Delete")) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("취소", "Cancel")) } },
     )
+    if (trimOpen) {
+        val t = track
+        if (t == null) trimOpen = false
+        else {
+            val idle = remember(t) { Series.idleTailStart(t) }
+            val picked = detailChart.cursorX?.let { km -> Series.firstIndexAtDistance(t, km * 1000) }?.takeIf { it in 1 until t.n - 1 }
+            fun cut(k: Int) {
+                trimOpen = false
+                detailChart.reset(); detailChart.cursorX = null
+                app.scope.launch(Dispatchers.IO) {
+                    val nt = app.store.loadTrack(id)?.trimmed(k)
+                    RunController.notice.value = if (nt == null || app.store.meta(id) == null) tr("잘라낼 수 없어요.", "Can't trim this run.") else {
+                        app.store.saveTrack(nt) { old -> Series.meta(nt, mine = true, old = old) }
+                        tr("끝부분을 잘라냈어요.", "The end was trimmed.")
+                    }
+                }
+            }
+            AlertDialog(
+                onDismissRequest = { trimOpen = false },
+                title = { Text(tr("끝부분 잘라내기", "Trim the end")) },
+                text = {
+                    Column {
+                        if (idle != null) {
+                            val len = Fmt.duration((t.t[t.n - 1] - t.t[idle]) / 10)
+                            Button(onClick = { cut(idle) }, modifier = Modifier.fillMaxWidth().testTag("trimIdle")) { Text(tr("멈춰 있던 끝부분 제거 (마지막 $len)", "Remove the idle tail (last $len)")) }
+                        }
+                        if (picked != null) {
+                            val km = String.format("%.2f", Series.cumDist(t)[picked] / 1000); val at = Fmt.duration(t.t[picked] / 10)
+                            OutlinedButton(onClick = { cut(picked) }, modifier = Modifier.fillMaxWidth().testTag("trimPicked")) { Text(tr("그래프에서 고른 지점 이후 제거 ($km km, $at)", "Remove everything after the point picked on the chart ($km km, $at)")) }
+                        } else Text(tr("그래프를 탭해 자를 지점을 고르면 그 뒤를 잘라낼 수 있어요.", "Tap the chart to pick a point; everything after it can be removed."), color = Dim, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                        Text(tr("잘라낸 부분은 되돌릴 수 없어요. 이미 그룹에 보낸 기록은 그룹원 쪽에서는 바뀌지 않습니다.", "Trimming can't be undone. Runs already sent to groups won't change on your group members' phones."), color = Color(0xFFFFB74D), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 10.dp))
+                    }
+                },
+                confirmButton = { TextButton(onClick = { trimOpen = false }) { Text(tr("취소", "Cancel")) } },
+            )
+        }
+    }
     if (shareOpen) {
         val checked = remember { mutableStateMapOf<String, Boolean>() }
         val already = meta.groupIds.toSet() + meta.pending
